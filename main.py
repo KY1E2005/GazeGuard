@@ -4,6 +4,7 @@ import sys
 import config
 import mediapipe as mp
 from core.gaze_tracker import GazeTracker
+from core.features import FeatureExtractor
 
 def main():
     # 1. Setup Camera
@@ -17,6 +18,7 @@ def main():
 
     # 2. Initialize the Tracker
     tracker = GazeTracker()
+    features = FeatureExtractor()
     
     # Temporary drawing utility just for testing
     mp_drawing = mp.solutions.drawing_utils
@@ -39,6 +41,16 @@ def main():
         # --- VISUALIZATION (Test) ---
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
+                landmarks = face_landmarks.landmark
+                
+                # 1. Calculate Metrics
+                ear = features.get_EAR(landmarks)
+                gaze = features.get_gaze_ratio(landmarks)
+                
+                # 2. Print to Terminal (Debug)
+                # "f-string" formatting limits decimal places for readability
+                print(f"EAR: {ear:.3f} | Gaze X: {gaze:.3f}")
+                
                 # Draw the mesh on the face
                 mp_drawing.draw_landmarks(
                     image=frame,
@@ -57,7 +69,7 @@ def main():
                     connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style()
                 )
 
-        cv2.imshow("GazeGuard - Mesh Test", frame)
+        cv2.imshow("GazeGuard", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
