@@ -14,3 +14,16 @@ WEIGHT_BLINK = 0.2
 COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (0, 0, 255)
 COLOR_YELLOW = (0, 255, 255)
+
+# --- Calibration Data ---
+EAR_THRESHOLD = 0.20          # Below this = BLINK
+GAZE_LEFT_THRESHOLD = 0.42    # Below this = Looking LEFT
+GAZE_RIGHT_THRESHOLD = 0.58   # Above this = Looking RIGHT
+
+PITCH_THRESHOLD = 15  # Up/Down limit
+YAW_THRESHOLD = 20    # Left/Right limit
+
+# --- Scoring Weights ---
+WEIGHT_GAZE = 0.4
+WEIGHT_POSE = 0.4
+WEIGHT_BLINK = 0.2
