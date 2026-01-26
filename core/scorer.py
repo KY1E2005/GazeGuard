@@ -10,27 +10,20 @@ class ConcentrationScorer:
         # Timers
         self.distracted_start_time = None
         self.eyes_closed_start_time = None
-        
-        # NEW: Timer for looking away (Gaze/Head)
         self.looking_away_start_time = None
 
     def _get_graded_score(self, value, low_limit, high_limit, buffer=0.05):
-        # 1. Safe Zone
-        if low_limit <= value <= high_limit:
-            return 1.0
-        # 2. Too Low
+        if low_limit <= value <= high_limit: return 1.0
         if value < low_limit:
             diff = low_limit - value
             if diff > buffer: return 0.0
             return 1.0 - (diff / buffer)
-        # 3. Too High
         if value > high_limit:
             diff = value - high_limit
             if diff > buffer: return 0.0
             return 1.0 - (diff / buffer)
 
     def get_score(self, ear, gaze_ratio, pitch, yaw):
-        
         # --- 1. Blink Score ---
         if ear > config.EAR_THRESHOLD:
             score_blink = 1.0
@@ -41,44 +34,45 @@ class ConcentrationScorer:
                 self.eyes_closed_start_time = time.time()
 
         # --- 2. Calculate Raw Scores ---
-        # Gaze Score (Using new relative thresholds)
-        score_gaze = self._get_graded_score(
-            gaze_ratio, 
-            config.GAZE_LEFT_THRESHOLD, 
-            config.GAZE_RIGHT_THRESHOLD, 
-            buffer=0.1 # Increased buffer slightly for stability
-        )
+        # Gaze (Buffered)
+        score_gaze = self._get_graded_score(gaze_ratio, config.GAZE_LEFT_THRESHOLD, config.GAZE_RIGHT_THRESHOLD, buffer=0.1)
         
-        # Head Pose Score
-        score_pitch = self._get_graded_score(pitch, -config.PITCH_THRESHOLD, config.PITCH_THRESHOLD, buffer=5)
+        # Yaw (Buffered) - Looking Left/Right
         score_yaw = self._get_graded_score(yaw, -config.YAW_THRESHOLD, config.YAW_THRESHOLD, buffer=5)
-        score_pose = min(score_pitch, score_yaw)
-
-        # --- 3. "Thinking" Grace Period (With Debounce) ---
-        is_looking_away = (score_gaze < 1.0 or score_pose < 1.0)
         
-        if is_looking_away:
-            # Start timer if not started
-            if self.looking_away_start_time is None:
-                self.looking_away_start_time = time.time()
+        # Pitch (INSTANT PENALTY) - Looking Down/Up
+        # We tighten the buffer to 0 so it drops instantly when crossing the threshold
+        score_pitch = self._get_graded_score(pitch, -config.PITCH_THRESHOLD, config.PITCH_THRESHOLD, buffer=0)
+
+        # --- 3. Distraction Logic ---
+        # If pitch is bad, we apply penalty IMMEDIATELY (No Timer)
+        if score_pitch < 1.0:
+            score_pose = 0.0
+            score_gaze = 0.0 # Force gaze fail too
+            self.score_history = [] # Clear history to crash the score instantly
+            self.looking_away_start_time = None # Reset grace timer
             
-            # Calculate duration
-            time_away = time.time() - self.looking_away_start_time
-            
-            # GRACE PERIOD: If < 1.5s, FORCE SCORE TO 100%
-            if time_away < 1.5:
-                score_gaze = 1.0
-                score_pose = 1.0
-            # If > 1.5s, the actual low scores will flow through
-            
+        # If pitch is fine, but gaze/yaw is off, allow a grace period
         else:
-            # DEBOUNCE: Don't reset timer immediately!
-            # Only reset if we are truly focused (e.g., gaze is perfect center)
-            # This prevents the "jitter" from resetting the clock constantly.
-            if self.looking_away_start_time:
-                 # Check if we are "safely" back in bounds (not just on the edge)
-                 if score_gaze == 1.0 and score_pose == 1.0:
-                     self.looking_away_start_time = None
+            score_pose = score_yaw # Pitch is perfect, so Pose depends on Yaw
+            
+            is_looking_away = (score_gaze < 1.0 or score_pose < 1.0)
+            
+            if is_looking_away:
+                if self.looking_away_start_time is None:
+                    self.looking_away_start_time = time.time()
+                
+                time_away = time.time() - self.looking_away_start_time
+                
+                # Grace Period: If < 1.5s, IGNORE the distraction
+                if time_away < 1.5:
+                    score_gaze = 1.0
+                    score_pose = 1.0
+            else:
+                # Debounce: Only reset if truly safe
+                if self.looking_away_start_time:
+                    if score_gaze == 1.0 and score_pose == 1.0:
+                        self.looking_away_start_time = None
 
         # --- 4. Drowsiness Override ---
         if self.eyes_closed_start_time:
@@ -92,7 +86,7 @@ class ConcentrationScorer:
                     (score_pose * config.WEIGHT_POSE) + \
                     (score_blink * config.WEIGHT_BLINK)
         
-        current_score = raw_score * 100
+        current_score = int(raw_score * 100)
         
         # --- 6. Smoothing ---
         self.score_history.append(current_score)
@@ -100,7 +94,7 @@ class ConcentrationScorer:
             self.score_history.pop(0)
         smooth_score = int(np.mean(self.score_history))
         
-        # --- 7. Status Logic ---
+        # --- 7. Status ---
         explanation = "Focused"
         if smooth_score < 40:
             explanation = "Distracted!"
