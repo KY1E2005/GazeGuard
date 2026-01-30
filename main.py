@@ -2,6 +2,8 @@ import cv2
 import sys
 import config
 import mediapipe as mp
+import pygame 
+import os     
 from core.gaze_tracker import GazeTracker
 from core.features import FeatureExtractor
 from core.scorer import ConcentrationScorer
@@ -23,6 +25,17 @@ def main():
     scorer = ConcentrationScorer()
     detector = ObjectDetector()
     
+    # --- Audio Setup ---
+    pygame.mixer.init()
+    sound_path = os.path.join(os.path.dirname(__file__), "assets", "alert.wav")
+    try:
+        alert_sound = pygame.mixer.Sound(sound_path)
+    except FileNotFoundError:
+        print(f"Warning: Sound file not found at {sound_path}. Audio disabled.")
+        alert_sound = None 
+
+    was_phone_detected = False
+    
     # Visualization utils
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
@@ -37,11 +50,21 @@ def main():
         # Flip frame
         frame = cv2.flip(frame, 1)
         
-        # Get frame dimensions for dynamic sizing
+        # Get frame dimensions
         height, width, _ = frame.shape
 
         # --- PHONE DETECTION ---
-        phone_detected = detector.detect(frame)
+        phone_detected, phone_box = detector.detect(frame)
+        
+        # --- Audio Trigger Logic ---
+        if phone_detected:
+            if not was_phone_detected and alert_sound:
+                alert_sound.play() 
+        else:
+            if was_phone_detected and alert_sound:
+                alert_sound.stop()
+        
+        was_phone_detected = phone_detected
         
         # --- FACE TRACKING ---
         results = tracker.process_frame(frame)
@@ -62,25 +85,26 @@ def main():
                 
                 # 3. Visuals
                 font_scale = width / 640.0
-                # Score Color
                 color = (0, 255, 0) if score > 50 else (0, 0, 255)
-                # Draw Score
+                
                 cv2.putText(frame, f"Score: {score}%", (30, int(50 * font_scale)), 
                            cv2.FONT_HERSHEY_DUPLEX, font_scale, color, 2)
-                # Draw Status
                 cv2.putText(frame, f"Status: {status}", (30, int(90 * font_scale)), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (200, 200, 200), 2)
-                # Debug Data (Bottom Left)
+                           
                 cv2.putText(frame, f"Gaze: {gaze:.2f} | Pitch: {pitch:.0f}", (30, height - 30),
                            cv2.FONT_HERSHEY_PLAIN, 1.0 * font_scale, (255, 255, 0), 1)
-                # Draw Phone Warning
+                
+                # --- Draw Phone Warnings ---
                 if phone_detected:
+                    if phone_box:
+                        bx, by, bw, bh = phone_box
+                        cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), (0, 0, 255), 3)
+
                     text = "PHONE DETECTED"
-                    # Calculate center position
                     text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.5 * font_scale, 3)[0]
                     text_x = (width - text_size[0]) // 2
                     text_y = (height + text_size[1]) // 2
-                    
                     cv2.putText(frame, text, (text_x, text_y), 
                          cv2.FONT_HERSHEY_SIMPLEX, 1.5 * font_scale, (0, 0, 255), 3)
 

@@ -28,36 +28,45 @@ class ObjectDetector:
         
         # State
         self.phone_detected = False
+        self.phone_box = None
         self.last_phone_time = 0 
         self.frame_count = 0
         self.SKIP_FRAMES = 15
 
     def detect(self, frame):
         self.frame_count += 1
+        
         if self.frame_count % self.SKIP_FRAMES == 0:
             
-            # 1. Convert Frame
+            # Convert Frame
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
 
-            # 2. Run Detection
+            # Run Detection
             detection_result = self.detector.detect(mp_image)
             
-            # 3. Check for Phone
+            # Check for Phone and get its Box
             found_now = False
+            new_box = None
             for detection in detection_result.detections:
                 for category in detection.categories:
                     if category.category_name in ['cell phone', 'mobile phone']:
                         found_now = True
+                        bbox = detection.bounding_box
+                        new_box = [bbox.origin_x, bbox.origin_y, bbox.width, bbox.height]
                         break
+                if found_now: break
             
-            # 4. Logic with Memory (Cooldown)
+            # Logic with Memory (Cooldown)
             if found_now:
                 self.phone_detected = True
+                self.phone_box = new_box # Update the stored box
                 self.last_phone_time = time.time()
             else:
                 # Keep detecting for 2.0 seconds after it disappears
                 if time.time() - self.last_phone_time > 2.0:
                     self.phone_detected = False
-
-        return self.phone_detected
+                    self.phone_box = None
+        
+        # Return BOTH status and the box
+        return self.phone_detected, self.phone_box
