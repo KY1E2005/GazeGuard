@@ -45,7 +45,7 @@ class ObjectDetector:
             # Run Detection
             detection_result = self.detector.detect(mp_image)
             
-            # Check for Phone and get its Box
+            # Check for Phone
             found_now = False
             new_box = None
             for detection in detection_result.detections:
@@ -57,16 +57,14 @@ class ObjectDetector:
                         break
                 if found_now: break
             
-            # Logic with Memory (Cooldown)
+            # Logic with Memory
             if found_now:
                 self.phone_detected = True
-                self.phone_box = new_box # Update the stored box
+                self.phone_box = new_box
                 self.last_phone_time = time.time()
             else:
-                # Keep detecting for 2.0 seconds after it disappears
-                if time.time() - self.last_phone_time > 2.0:
+                if time.time() - self.last_phone_time > 0.9:
                     self.phone_detected = False
                     self.phone_box = None
-        
-        # Return BOTH status and the box
+    
         return self.phone_detected, self.phone_box
