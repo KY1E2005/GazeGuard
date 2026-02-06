@@ -4,7 +4,7 @@ import config
 import mediapipe as mp
 import pygame 
 import os
-import numpy as np
+import numpy as np 
 from core.gaze_tracker import GazeTracker
 from core.features import FeatureExtractor
 from core.scorer import ConcentrationScorer
@@ -53,6 +53,7 @@ def main():
     # --- Audio Setup ---
     pygame.mixer.init()
     assets_dir = os.path.join(os.path.dirname(__file__), "assets")
+    
     phone_sound_path = os.path.join(assets_dir, "alert.wav")
     beep_sound_path = os.path.join(assets_dir, "beep.wav")
     
@@ -66,8 +67,10 @@ def main():
     except FileNotFoundError:
         print(f"Warning: beep.wav not found at {beep_sound_path}")
         beep_sound = None
+
     was_phone_detected = False
     is_beep_playing = False
+    
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
     mp_face_mesh = mp.solutions.face_mesh
@@ -85,63 +88,41 @@ def main():
         ui_state['height'] = height
         font_scale = width / 640.0
 
-        # 1. ENVIRONMENT CHECK: BRIGHTNESS
+        # Calculate global brightness for fallback check
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        brightness = np.mean(gray)
-        
-        if brightness < 60:
-            if is_beep_playing and beep_sound:
-                beep_sound.stop()
-                is_beep_playing = False
-            if was_phone_detected and phone_sound:
-                phone_sound.stop()
-                was_phone_detected = False
-            text1 = "GazeGuard disabled due to poor lighting"
-            text2 = "Please find suitable lighting conditions"
-            t1_size = cv2.getTextSize(text1, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
-            t2_size = cv2.getTextSize(text2, cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, 2)[0]
-            cv2.putText(frame, text1, ((width - t1_size[0]) // 2, height // 2 - 20), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 165, 255), 2)
-            cv2.putText(frame, text2, ((width - t2_size[0]) // 2, height // 2 + 20), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, (0, 165, 255), 2)
-            
-            cv2.imshow(window_name, frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'): break
-            continue 
-        
-        # --- PHONE DETECTION ---
+        global_brightness = np.mean(gray)
+        # Run detections immediately
         phone_detected, phone_box = detector.detect(frame)
-        
-        if phone_detected:
-            if not was_phone_detected and phone_sound:
-                phone_sound.play() 
-        else:
-            if was_phone_detected and phone_sound:
-                phone_sound.stop()
-        was_phone_detected = phone_detected
-        
-        # --- FACE TRACKING ---
         results = tracker.process_frame(frame)
-        
         should_play_beep = False
-        
-        # 3. NO FACE DETECTED CHECK
+        system_active = False
+
+        # DECISION LOGIC: FACE vs LIGHTING
+        # No Faces Found
         if not results.multi_face_landmarks:
-            # Stop distraction beep (Phone beep stays if phone is visible)
+            if global_brightness < 60: 
+                text1 = "GazeGuard disabled due to poor lighting"
+                text2 = "Please find suitable lighting conditions"
+                t1_size = cv2.getTextSize(text1, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
+                t2_size = cv2.getTextSize(text2, cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, 2)[0]
+                
+                cv2.putText(frame, text1, ((width - t1_size[0]) // 2, height // 2 - 20), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 165, 255), 2)
+                cv2.putText(frame, text2, ((width - t2_size[0]) // 2, height // 2 + 20), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, (0, 165, 255), 2)
+            else:
+                text = "No Face detected"
+                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, 2)[0]
+                cv2.putText(frame, text, ((width - text_size[0]) // 2, height // 2), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, (0, 165, 255), 2)
             if is_beep_playing and beep_sound:
                 beep_sound.stop()
                 is_beep_playing = False
-            
-            text = "No Face detected"
-            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, 2)[0]
-            cv2.putText(frame, text, ((width - text_size[0]) // 2, height // 2), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, (0, 165, 255), 2)
 
+        # Faces Found (Check Face Brightness)
         else:
-            # 4. FACES FOUND - PROCESS MAIN USER
             all_faces = results.multi_face_landmarks
-            num_faces = len(all_faces)
-            # Sort by center proximity
+            # Sort faces
             screen_center_x = 0.5 
             sorted_faces = []
             for face in all_faces:
@@ -149,105 +130,141 @@ def main():
                 dist = abs(nose_x - screen_center_x)
                 sorted_faces.append((face, dist, nose_x))
             sorted_faces.sort(key=lambda x: x[1])
-            
             main_face = sorted_faces[0][0]
             main_nose_x = sorted_faces[0][2]
-            
-            # --- CENTERING CHECK ---
-            if main_nose_x < 0.2 or main_nose_x > 0.8:
-                should_play_beep = True
-                warn_text = "Please center yourself for better accuracy"
-                w_size = cv2.getTextSize(warn_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
-                cv2.putText(frame, warn_text, ((width - w_size[0]) // 2, height - 80), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 165, 255), 2)
 
-            # --- MULTIPLE FACE LOGIC ---
-            if num_faces > 1:
-                should_play_beep = True
-                text = "MULTIPLE FACE DETECTED"
-                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, 2)[0]
-                text_x = (width - text_size[0]) // 2
-                text_y = int(height * 0.15)
+            # --- DYNAMIC BRIGHTNESS CHECK ---
+            try:
+                h_img, w_img = gray.shape
+                x_min = int(min([l.x for l in main_face.landmark]) * w_img)
+                x_max = int(max([l.x for l in main_face.landmark]) * w_img)
+                y_min = int(min([l.y for l in main_face.landmark]) * h_img)
+                y_max = int(max([l.y for l in main_face.landmark]) * h_img)
+                x_min, x_max = max(0, x_min), min(w_img, x_max)
+                y_min, y_max = max(0, y_min), min(h_img, y_max)
+                face_roi = gray[y_min:y_max, x_min:x_max]
+                face_brightness = np.mean(face_roi) if face_roi.size > 0 else 0
+            except:
+                face_brightness = global_brightness
+
+            if face_brightness < 40: 
+                text = "Face too dark for accuracy"
+                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8 * font_scale, 2)[0]
+                cv2.putText(frame, text, ((width - text_size[0]) // 2, height // 2), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8 * font_scale, (0, 165, 255), 2)
+                if is_beep_playing and beep_sound:
+                    beep_sound.stop()
+                    is_beep_playing = False
+            else:
+                system_active = True
+                num_faces = len(all_faces)
+
+                # Centering Check
+                if main_nose_x < 0.2 or main_nose_x > 0.8:
+                    should_play_beep = True
+                    warn_text = "Please center yourself for better accuracy"
+                    w_size = cv2.getTextSize(warn_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, 2)[0]
+                    cv2.putText(frame, warn_text, ((width - w_size[0]) // 2, height - 80), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, (0, 165, 255), 2)
+
+                # Multiple Face Check
+                if num_faces > 1:
+                    should_play_beep = True
+                    text = "MULTIPLE FACES DETECTED"
+                    text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, 2)[0]
+                    text_x = (width - text_size[0]) // 2
+                    text_y = int(height * 0.15)
+                    cv2.rectangle(frame, (text_x - 10, text_y - 30), (text_x + text_size[0] + 10, text_y + 10), (0, 0, 0), -1)
+                    cv2.putText(frame, text, (text_x, text_y), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, (0, 0, 255), 2)
+
+                # Scoring
+                landmarks = main_face.landmark
+                ear = features.get_EAR(landmarks)
+                gaze = features.get_gaze_ratio(landmarks)
+                pitch, yaw, roll = features.get_head_pose(landmarks, frame.shape)
                 
-                cv2.rectangle(frame, (text_x - 10, text_y - 30), (text_x + text_size[0] + 10, text_y + 10), (0, 0, 0), -1)
-                cv2.putText(frame, text, (text_x, text_y), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, (0, 0, 255), 2)
-
-            # --- SCORING ---
-            landmarks = main_face.landmark
-            ear = features.get_EAR(landmarks)
-            gaze = features.get_gaze_ratio(landmarks)
-            pitch, yaw, roll = features.get_head_pose(landmarks, frame.shape)
-            
-            score, duration, status = scorer.get_score(
-                ear, gaze, pitch, yaw, phone_detected
-            )
-            
-            # Long Distraction Logic
-            if duration > 5.0:
-                should_play_beep = True
-                text = "Stay Focus"
-                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, 2)[0]
-                text_x = (width - text_size[0]) // 2
-                text_y = int(height * 0.3) 
-                cv2.putText(frame, text, (text_x, text_y), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)
-            
-            # --- VISUALS ---
-            color = (0, 255, 0) if score > 50 else (0, 0, 255)
-            cv2.putText(frame, f"Score: {score}%", (30, int(50 * font_scale)), 
-                       cv2.FONT_HERSHEY_DUPLEX, font_scale, color, 2)
-            status_text = f"Status: {status}"
-            status_pos = (30, int(90 * font_scale))
-            # Layer 1: Outline (Thick White)
-            cv2.putText(frame, status_text, status_pos, 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (255, 255, 255), 5)
-            # Layer 2: Main Text (Thin Black)
-            cv2.putText(frame, status_text, status_pos, 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 0, 0), 2)
-            if ui_state['debug_mode']:
-                cv2.putText(frame, f"Gaze: {gaze:.2f} | Pitch: {pitch:.0f}", (30, height - 30),
-                           cv2.FONT_HERSHEY_PLAIN, 1.0 * font_scale, (255, 255, 0), 1)
-
-                mp_drawing.draw_landmarks(
-                    image=frame,
-                    landmark_list=main_face,
-                    connections=mp_face_mesh.FACEMESH_TESSELATION,
-                    landmark_drawing_spec=None,
-                    connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style()
+                score, duration, status = scorer.get_score(
+                    ear, gaze, pitch, yaw, phone_detected
                 )
-                mp_drawing.draw_landmarks(
-                    image=frame,
-                    landmark_list=main_face,
-                    connections=mp_face_mesh.FACEMESH_IRISES,
-                    landmark_drawing_spec=None,
-                    connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style()
-                )
+                
+                # Long Distraction
+                if duration > 5.0:
+                    should_play_beep = True
+                    text = "Stay Focus"
+                    text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, 2)[0]
+                    text_x = (width - text_size[0]) // 2
+                    text_y = int(height * 0.3) 
+                    cv2.putText(frame, text, (text_x, text_y), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)
+                
+                # Visuals (Score & Status)
+                color = (0, 255, 0) if score > 50 else (0, 0, 255)
+                cv2.putText(frame, f"Score: {score}%", (30, int(50 * font_scale)), 
+                           cv2.FONT_HERSHEY_DUPLEX, font_scale, color, 2)
+                
+                status_text = f"Status: {status}"
+                status_pos = (30, int(90 * font_scale))
+                cv2.putText(frame, status_text, status_pos, 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (255, 255, 255), 5)
+                cv2.putText(frame, status_text, status_pos, 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 0, 0), 2)
+                
+                if ui_state['debug_mode']:
+                    cv2.putText(frame, f"Gaze: {gaze:.2f} | Pitch: {pitch:.0f}", (30, height - 30),
+                               cv2.FONT_HERSHEY_PLAIN, 1.0 * font_scale, (255, 255, 0), 1)
 
-            # --- Phone Warnings ---
-            if phone_detected:
-                if phone_box and ui_state['debug_mode']: 
-                    bx, by, bw, bh = phone_box
-                    cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), (0, 0, 255), 3)
+                    mp_drawing.draw_landmarks(
+                        image=frame,
+                        landmark_list=main_face,
+                        connections=mp_face_mesh.FACEMESH_TESSELATION,
+                        landmark_drawing_spec=None,
+                        connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style()
+                    )
+                    mp_drawing.draw_landmarks(
+                        image=frame,
+                        landmark_list=main_face,
+                        connections=mp_face_mesh.FACEMESH_IRISES,
+                        landmark_drawing_spec=None,
+                        connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style()
+                    )
 
-                text = "PHONE DETECTED"
-                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.5 * font_scale, 3)[0]
-                text_x = (width - text_size[0]) // 2
-                text_y = (height + text_size[1]) // 2
-                cv2.putText(frame, text, (text_x, text_y), 
-                     cv2.FONT_HERSHEY_SIMPLEX, 1.5 * font_scale, (0, 0, 255), 3)
+        # PHONE ALERTS
+        if phone_detected:
+            if phone_box and ui_state['debug_mode']: 
+                bx, by, bw, bh = phone_box
+                cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), (0, 0, 255), 3)
 
-        # --- BEEP MANAGER ---
-        if should_play_beep:
-            if not is_beep_playing and beep_sound:
-                beep_sound.play(loops=-1)
-                is_beep_playing = True
+            text = "PHONE DETECTED"
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.5 * font_scale, 3)[0]
+            text_x = (width - text_size[0]) // 2
+            text_y = (height + text_size[1]) // 2
+            cv2.putText(frame, text, (text_x, text_y), 
+                 cv2.FONT_HERSHEY_SIMPLEX, 1.5 * font_scale, (0, 0, 255), 3)
+            
+            if not was_phone_detected and phone_sound:
+                phone_sound.play() 
+        else:
+            if was_phone_detected and phone_sound:
+                phone_sound.stop()
+        was_phone_detected = phone_detected
+
+        # AUDIO & CONTROLS
+        if system_active:
+            if should_play_beep:
+                if not is_beep_playing and beep_sound:
+                    beep_sound.play(loops=-1)
+                    is_beep_playing = True
+            else:
+                if is_beep_playing and beep_sound:
+                    beep_sound.stop()
+                    is_beep_playing = False
         else:
             if is_beep_playing and beep_sound:
                 beep_sound.stop()
                 is_beep_playing = False
 
-        # --- CHECKBOX UI ---
+        # Checkbox UI
         margin_right = 40
         margin_bottom = 30
         box_size = 20
