@@ -5,6 +5,7 @@ import mediapipe as mp
 import pygame 
 import os
 import numpy as np 
+import time
 from core.gaze_tracker import GazeTracker
 from core.features import FeatureExtractor
 from core.scorer import ConcentrationScorer
@@ -70,6 +71,7 @@ def main():
 
     was_phone_detected = False
     is_beep_playing = False
+    look_away_start = None
     
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
@@ -115,6 +117,9 @@ def main():
                 text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, 2)[0]
                 cv2.putText(frame, text, ((width - text_size[0]) // 2, height // 2), 
                            cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, (0, 165, 255), 2)
+            
+            # Reset logic if no face
+            look_away_start = None
             if is_beep_playing and beep_sound:
                 beep_sound.stop()
                 is_beep_playing = False
@@ -155,6 +160,7 @@ def main():
                 if is_beep_playing and beep_sound:
                     beep_sound.stop()
                     is_beep_playing = False
+                look_away_start = None
             else:
                 system_active = True
                 num_faces = len(all_faces)
@@ -188,7 +194,23 @@ def main():
                     ear, gaze, pitch, yaw, phone_detected
                 )
                 
-                # Long Distraction
+                # --- Look away detection ---
+                is_looking_away = (gaze < 0.5) or (gaze > 2.2) or (abs(pitch) > 15)
+
+                if is_looking_away:
+                    if look_away_start is None:
+                        look_away_start = time.time()
+                    
+                    if time.time() - look_away_start > 3.0:
+                        should_play_beep = True
+                        text = "Stay Focus"
+                        text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, 2)[0]
+                        cv2.putText(frame, text, ((width - text_size[0]) // 2, int(height * 0.3)), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)
+                else:
+                    look_away_start = None
+
+                # Long Distraction (Existing)
                 if duration > 5.0:
                     should_play_beep = True
                     text = "Stay Focus"
