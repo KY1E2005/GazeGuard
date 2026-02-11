@@ -1,0 +1,299 @@
+:root {
+            --brand-color: #FD871F;
+            --brand-dark: #e67e22;
+            --bg-dark: #1a1a1a;
+            --bg-darker: #0d0d0d;
+            --text-light: #f4f4f4;
+            --text-grey: #a6a7aa;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: 'Hind', sans-serif;
+        }
+
+        h1, h2, h3, h4, h5 { color: white !important; }
+        p { color: var(--text-grey) !important; }
+
+        .header {
+            background-color: transparent !important; 
+            border-bottom: none; 
+            padding: 5px 0; 
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 9999;
+        }
+
+        .navbar-brand img {
+            height: 128px; 
+            width: auto;
+            max-height: none;
+        }
+        .logo {
+            float: left;
+        }
+        .hero-section {
+            position: relative;
+            height: 100vh;
+        }
+        
+        .hero-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .hero-content {
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .hero-title {
+            font-size: 5rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .btn-brand {
+            border: 2px solid white;
+            color: white;
+            padding: 15px 50px;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-radius: 5px;
+            background: transparent;
+            transition: all 0.3s ease-in-out;
+            margin: 10px;
+            display: inline-block;
+            cursor: pointer;
+            text-decoration: none !important;
+        }
+
+        .btn-brand:hover {
+            background: var(--brand-color);
+            border-color: var(--brand-color);
+            color: white;
+        }
+
+        .btn-start {
+            background: #5cb85c !important;
+            border-color: #4cae4c !important;
+            color: white !important;
+        }
+        .btn-start:hover {
+            background: #449d44 !important;
+            border-color: #398439 !important;
+        }
+
+        .btn-stop {
+            background: #d9534f !important;
+            border-color: #d9534f !important;
+            color: white !important;
+        }
+        .btn-stop:hover {
+            background: #c9302c !important;
+            border-color: #ac2925 !important;
+        }
+
+        .btn-sm-toggle {
+            background: #333;
+            border: 1px solid #555;
+            color: #ccc;
+            padding: 5px 15px;
+            font-size: 12px;
+            border-radius: 4px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .btn-sm-toggle:hover { background: #444; color: white; }
+
+        .btn-remove-pdf{
+            background: #d9534f;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            width: fit-content;
+        }
+
+        .btn-remove-pdf:hover{background: #c9302c;}
+
+        #about {
+            background-color: var(--bg-darker);
+            padding: 100px 0;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .service-box {
+            background: #252525;
+            padding: 30px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border: 1px solid #333;
+            transition: transform 0.3s;
+        }
+        
+        .service-box:hover {
+            transform: translateY(-5px);
+            border-color: var(--brand-color);
+        }
+
+        #app-interface {
+            display: none;
+            padding: 100px 0;
+            background: #000;
+            min-height: 100vh;
+            border-top: 1px solid #333;
+        }
+
+        .row-eq-height {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: -ms-flexbox;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .webcam-wrapper {
+            background: #111;
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 100%; 
+            min-height: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 10px;
+        }
+
+        .doc-wrapper {
+            background: #252525;
+            border-radius: 8px;
+            padding: 20px;
+            height: 100%;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pdf-viewer-container {
+            flex-grow: 1;
+            background: #111;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: 1px dashed #444;
+            overflow: hidden;
+            position: relative;
+            min-height: 300px;
+        }
+        
+        #pdf-preview {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }
+
+        .placeholder-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+        }
+
+        .footer {
+            background: #000;
+            border-top: 1px solid #222;
+            padding: 30px 0;
+        }
+        
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .error {
+            font-family: 'Hind', sans-serif;
+            width: 320px;
+            padding: 12px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: start;
+            background: #EF665B; 
+            border-radius: 8px;
+            box-shadow: 0px 5px 15px rgba(0,0,0,0.2);
+            animation: slideIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        .error.orange {
+            background: #FD871F; 
+        }
+        .error__icon {
+            width: 20px;
+            height: 20px;
+            transform: translateY(-2px);
+            margin-right: 8px;
+        }
+        .error__icon path { fill: #fff; }
+        .error__title {
+            font-weight: 500;
+            font-size: 14px;
+            color: #fff;
+        }
+        .error__close {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+        .error__close path { fill: #fff; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .navbar-brand img { height: 80px; }
+            .hero-title { font-size: 3rem; }
+            .btn-brand { width: 100%; display: block; margin: 10px auto; text-align: center; }
+            .row-eq-height { display: block; }
+            .webcam-wrapper { min-height: 300px; margin-bottom: 20px; }
+            .pdf-viewer-container { height: 400px; }
+        }
