@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GazeGuard - Active Session</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/FavIcon.png') }}">
+    <link href="http://fonts.googleapis.com/css?family=Hind:400,600,700" rel="stylesheet" type="text/css">
+    
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" type="text/css"/>
+</head>
+<body class="session-body">
+
+    <div id="calibration-modal">
+        <div class="calibration-box">
+            <h2>GazeGuard Calibration</h2>
+            <p>Please look at the center of your screen to establish a baseline.</p>
+            <div class="spinner"></div>
+            <h1 id="countdown">3</h1>
+        </div>
+    </div>
+
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GazeGuard Logo" class="session-logo">
+
+    <div class="top-indicator">
+        <span class="dot"></span> Session/Tracking Active
+    </div>
+
+    <div class="workspace">
+        <div class="left-panel">
+            <iframe id="pdf-viewer" src=""></iframe>
+        </div>
+        <div class="resizer" id="dragMe"></div>
+        <div class="right-panel">
+            <div class="camera-box">
+                <img id="webcam-feed" src="" alt="Camera Feed">
+            </div>
+            <div class="controls-row" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 15px;">
+                <button id="btn-landmarks" class="btn-sm-toggle" onclick="toggleVisual('show_landmarks')">Toggle Landmarks</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <button class="end-session-btn" onclick="endSession()">
+            End Session <span class="icon-x">✖</span>
+        </button>
+    </div>
+
+    <script>
+        // --- LOAD PDF FROM INDEX.HTML ---
+        window.onload = function() {
+            const pdfUrl = sessionStorage.getItem('gazeGuardPdfUrl');
+            if (pdfUrl) {
+                document.getElementById('pdf-viewer').src = pdfUrl;
+            } else {
+                document.querySelector('.left-panel').innerHTML = "<h3 style='text-align:center; width:100%;'>No Document Uploaded</h3>";
+            }
+            startCalibration();
+        };
+
+        // --- INITIAL CALIBRATION LOGIC ---
+        function startCalibration() {
+            document.getElementById('webcam-feed').src = "{{ url_for('video_feed') }}";
+            
+            let count = 3;
+            const counterEl = document.getElementById('countdown');
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    counterEl.innerText = count;
+                } else {
+                    clearInterval(interval);
+                    counterEl.innerText = "Done!";
+                    setTimeout(() => {
+                        document.getElementById('calibration-modal').style.display = 'none';
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        // --- END SESSION ---
+        function endSession() {
+            document.getElementById('webcam-feed').src = ""; 
+            fetch('/shutdown_camera').then(() => {
+                window.location.href = "/dashboard"; 
+            });
+        }
+
+        // --- DRAG TO RESIZE LOGIC ---
+        const resizer = document.getElementById('dragMe');
+        const leftPanel = document.querySelector('.left-panel');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            document.body.style.cursor = 'ew-resize';
+            resizer.classList.add('resizing');
+            document.getElementById('pdf-viewer').style.pointerEvents = 'none';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isResizing) return;
+            
+            let newWidth = e.clientX - 20; 
+            const minWidth = window.innerWidth * 0.40;
+            const maxWidth = window.innerWidth * 0.75;
+            
+            if (newWidth < minWidth) newWidth = minWidth;
+            if (newWidth > maxWidth) newWidth = maxWidth;
+            
+            leftPanel.style.flex = `0 0 ${newWidth}px`;
+        });
+
+        document.addEventListener('mouseup', function(e) {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+                resizer.classList.remove('resizing');
+                document.getElementById('pdf-viewer').style.pointerEvents = 'auto';
+            }
+        });
+
+        function toggleVisual(feature) {
+            fetch(`/toggle_visual/${feature}`)
+            .then(response => response.json())
+            .then(data => {
+                const btn = document.getElementById('btn-landmarks');
+                if (data.state) {
+                    btn.style.opacity = '1';
+                } else {
+                    btn.style.opacity = '0.5';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

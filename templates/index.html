@@ -111,7 +111,6 @@
     <script src="{{ url_for('static', filename='js/layout.min.js') }}"></script>
 
     <script>
-        // Smooth Scroll
         $('a[href^="#"]').on('click', function(e) {
             var target = $(this.getAttribute('href'));
             if( target.length ) {
@@ -138,7 +137,6 @@
             const toastElement = document.createElement('div');
             toastElement.innerHTML = toastHTML;
             container.appendChild(toastElement.firstElementChild);
-            // Removes after 3 seconds
             setTimeout(() => {
                 if(container.firstChild) {
                     container.firstChild.style.animation = 'fadeOut 0.5s forwards';
@@ -151,7 +149,7 @@
         let isSessionActive = false;
         let isFileReady = false;
 
-        // 1. INITIALIZE
+        // INITIALIZE
         function initializeGazeGuard() {
             var appSection = document.getElementById('app-interface');
             appSection.style.display = 'block';
@@ -159,7 +157,7 @@
             document.getElementById('webcam-feed').src = "{{ url_for('video_feed') }}";
         }
 
-        // 2. TOGGLE SESSION (Start/Stop)
+        // TOGGLE SESSION (Start/Stop)
         const btn = document.getElementById('sessionBtn');
         
         function toggleSession() {
@@ -169,6 +167,7 @@
                     showToast("Please upload a PDF document before starting the session.", "error");
                     return;
                 }
+                window.location.href = "/session";
                 isSessionActive = true;
                 btn.innerText = "Stop Session";
                 btn.classList.remove('btn-start');
@@ -219,6 +218,8 @@
                     iframe.src = data.url;
                     iframe.style.display = 'block';
                     if(placeholder) placeholder.style.display = 'none';
+                    sessionStorage.setItem('gazeGuardPdfUrl', data.url);
+
                     removeBtn.style.display = 'block';
                     isFileReady = true;
                 }
