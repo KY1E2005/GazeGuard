@@ -82,6 +82,10 @@ class ConcentrationScorer:
                 score_pose = 0.0
                 explanation = "Drowsy!"
 
+        # --- DYNAMIC WEIGHTING: Gaze-Dominant Override ---
+        if score_gaze > 0.8:
+            score_pose = max(score_pose, score_gaze - 0.2) 
+
         # ---Weighted Average ---
         raw_score = (score_gaze * config.WEIGHT_GAZE) + \
                     (score_pose * config.WEIGHT_POSE) + \

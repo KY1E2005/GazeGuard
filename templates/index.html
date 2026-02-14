@@ -78,7 +78,7 @@
                         <img id="webcam-feed" src="" alt="Camera Inactive" style="width:100%; height:auto;">
                         <div class="controls-row">
                             <button id="toggleFeedBtn" class="btn-sm-toggle" onclick="toggleCameraFeed()">Hide Feed</button>
-                            <button class="btn-sm-toggle" onclick="toggleVisuals()">Show/Hide Visuals</button>
+                            <button id="btn-landmarks" class="btn-sm-toggle" onclick="toggleVisual('show_landmarks')">Show/Hide Visuals</button>
                         </div>
                     </div>
                 </div>
@@ -182,8 +182,17 @@
             }
         }
 
-        function toggleVisuals() {
-            fetch('/toggle_visuals');
+        function toggleVisual(feature) {
+            fetch(`/toggle_visual/${feature}`)
+            .then(response => response.json())
+            .then(data => {
+                const btn = document.getElementById('btn-landmarks');
+                if (data.state) {
+                    btn.style.opacity = '1';
+                } else {
+                    btn.style.opacity = '0.5';
+                }
+            });
         }
 
         function toggleCameraFeed() {

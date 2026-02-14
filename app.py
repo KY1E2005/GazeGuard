@@ -159,8 +159,20 @@ def generate_frames():
                     
                     score, duration, status = scorer.get_score(ear, gaze, pitch, yaw, phone_detected)
                     
-                    is_looking_away = (gaze < 0.5) or (gaze > 2.2) or (abs(pitch) > 15)
+                    # --- GAZE-DOMINANT LOOK AWAY LOGIC ---
+                    bad_gaze = (gaze < 0.35) or (gaze > 0.65) # Eyes clearly off screen
+                    bad_pose = (abs(pitch) > 25) or (abs(yaw) > 30) or (abs(roll) > 25) 
+                    drifting_gaze = (gaze < 0.40) or (gaze > 0.60)
+                    
+                    # Only flag if eyes are gone, OR if head is heavily turned AND eyes are drifting
+                    is_looking_away = bad_gaze or (bad_pose and drifting_gaze)
 
+                    if bad_pose and not is_looking_away:
+                        warn_text = "Please keep your head straight"
+                        w_size = cv2.getTextSize(warn_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
+                        cv2.putText(frame, warn_text, ((width - w_size[0]) // 2, height - 60), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 255, 255), 2)
+                        
                     if is_looking_away:
                         if look_away_start is None:
                             look_away_start = time.time()

@@ -309,14 +309,6 @@ Session.html
     overflow: hidden;
 }
 
-.session-logo {
-    position: absolute;
-    top: 15px;
-    left: 20px;
-    height: 65px; 
-    z-index: 10;
-}
-
 #calibration-modal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.85);
@@ -343,9 +335,11 @@ Session.html
 }
 
 .workspace {
-    display: flex; height: calc(100vh - 60px); 
-    padding: 70px 20px 0 20px; /* Pushed down to clear the logo */
-    gap: 20px; box-sizing: border-box;
+    display: flex;
+    height: calc(100vh - 45px);
+    padding: 30px 20px 0 20px; 
+    gap: 20px; 
+    box-sizing: border-box;
 }
 
 .left-panel {
@@ -374,18 +368,30 @@ Session.html
 }
 
 .bottom-bar {
-    height: 60px; background-color: #4a4a4a;
-    display: flex; justify-content: flex-end; 
+    height: 45px;
+    background-color: #4a4a4a;
+    display: flex; 
+    justify-content: flex-end; 
     align-items: center;
-    padding: 0 30px; color: white; position: fixed; bottom: 0; width: 100%;
+    padding: 0 30px; 
+    color: white; 
+    position: fixed; 
+    bottom: 0; 
+    width: 100%;
     box-sizing: border-box;
     z-index: 100;
 }
 
 .end-session-btn {
-    background: transparent; border: none; color: #ff4d4d;
-    font-size: 20px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; gap: 10px;
+    background: transparent; 
+    border: none; 
+    color: #ff4d4d;
+    font-size: 15px; 
+    font-weight: 700; 
+    cursor: pointer;
+    display: flex; 
+    align-items: center; 
+    gap: 10px;
 }
 .end-session-btn:hover { color: #ff1a1a; }
 .icon-x {
