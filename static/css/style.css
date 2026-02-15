@@ -364,7 +364,11 @@ Session.html
     box-shadow: 0 10px 20px rgba(0,0,0,0.2);
 }
 #webcam-feed {
-    width: 100%; height: 100%; object-fit: cover; display: block;
+    width: 100%; 
+    height: 100%; 
+    object-fit: contain;
+    display: block;
+    background-color: #000;
 }
 
 .bottom-bar {
@@ -411,4 +415,79 @@ Session.html
 }
 .resizer:hover, .resizer.resizing {
     background: #FD871F; 
+}
+
+
+.pdf-frame {
+    width: 100%;
+    height: 100%; 
+    border: none;
+    display: block;
+}
+
+.doc-transition {
+    position: relative;
+    width: 100%;
+    height: 50px;
+    margin: 10px 0;
+    background: #222;
+    color: #FD871F;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-top: 2px solid #FD871F;
+    border-bottom: 2px solid #FD871F;
+    z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .workspace {
+        flex-direction: column;
+        padding: 40px 10px 10px 10px;
+        gap: 10px;
+        height: calc(100vh - 45px);
+    }
+    
+    .left-panel {
+        flex: 0 0 50vh !important;
+        width: 100%;
+    }
+    
+    .right-panel {
+        flex: 1;
+        width: 100%;
+        padding-bottom: 0;
+        justify-content: flex-start;
+    }
+    
+    .resizer {
+        width: 100%;
+        height: 12px;
+        margin: 0;
+        cursor: ns-resize; 
+        background: #555;
+        border-radius: 6px;
+    }
+    
+    .camera-box {
+        width: 100%;
+        height: auto;
+        max-height: 25vh;
+        aspect-ratio: 4/3;
+        margin: 0 auto;
+        background: transparent;
+    }
+
+    .controls-row {
+        margin-top: 5px !important;
+        gap: 5px !important;
+    }
+    .btn-sm-toggle {
+        padding: 4px 10px;
+        font-size: 11px;
+    }
 }

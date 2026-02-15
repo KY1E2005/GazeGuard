@@ -88,7 +88,7 @@
                         <h3>Study Material</h3>
                         <p class="text-muted">Upload a PDF to view here.</p>
                         
-                        <input type="file" id="pdfInput" class="form-control" accept="application/pdf">
+                        <input type="file" id="pdfInput" class="form-control" accept="application/pdf" multiple>
                         <button id="removePdfBtn" class="btn-remove-pdf" onclick="removePDF()">✕ Remove File</button>
                         <div class="pdf-viewer-container">
                             <p class="placeholder-text">PDF Preview</p>
@@ -208,44 +208,88 @@
             }
         }
 
-        // PDF UPLOAD
+        // PDF UPLOADS
+        let uploadedPdfs = [];
+
         document.getElementById('pdfInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const files = e.target.files;
+            if (files.length === 0) return;
+            if (uploadedPdfs.length + files.length > 3) {
+                showToast("Maximum of 3 PDF files ONLY allowed per session.", "error");
+                this.value = ""; 
+                return;
+            }
 
             const formData = new FormData();
-            formData.append('file', file);
+            for (let i = 0; i < files.length; i++) {
+                formData.append('file', files[i]);
+            }
 
             fetch('/upload_pdf', { method: 'POST', body: formData })
             .then(response => response.json())
             .then(data => {
-                if (data.url) {
-                    const iframe = document.getElementById('pdf-preview');
-                    const placeholder = document.querySelector('.placeholder-text');
-                    const removeBtn = document.getElementById('removePdfBtn');
-                    
-                    iframe.src = data.url;
-                    iframe.style.display = 'block';
-                    if(placeholder) placeholder.style.display = 'none';
-                    sessionStorage.setItem('gazeGuardPdfUrl', data.url);
-
-                    removeBtn.style.display = 'block';
-                    isFileReady = true;
+                if (data.urls) {
+                    uploadedPdfs = uploadedPdfs.concat(data.urls);
+                    updatePdfPreview();
                 }
             });
         });
 
-        function removePDF() {
-            const iframe = document.getElementById('pdf-preview');
-            const placeholder = document.querySelector('.placeholder-text');
+        function updatePdfPreview() {
+            const container = document.querySelector('.pdf-viewer-container');
             const removeBtn = document.getElementById('removePdfBtn');
-            const input = document.getElementById('pdfInput');
-            iframe.src = "";
-            iframe.style.display = 'none';
-            if(placeholder) placeholder.style.display = 'block';
-            input.value = ""; 
-            removeBtn.style.display = 'none';
-            isFileReady = false;
+            const docTypeSelect = document.getElementById('docType');
+            
+            container.innerHTML = '';
+            
+            if (uploadedPdfs.length === 0) {
+                container.innerHTML = '<p class="placeholder-text">PDF Preview</p>';
+                container.style.overflowY = 'hidden';
+                removeBtn.style.display = 'none';
+                if(docTypeSelect) docTypeSelect.style.display = 'none';
+                isFileReady = false;
+                return;
+            }
+
+            container.style.overflowY = 'auto';
+            container.style.display = 'block';
+
+            uploadedPdfs.forEach((url, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.style.height = '100%';
+                wrapper.style.position = 'relative';
+                wrapper.style.borderBottom = '5px solid #FD871F';
+                
+                const badge = document.createElement('div');
+                badge.innerText = `Document ${index + 1}`;
+                badge.style.position = 'absolute';
+                badge.style.top = '0'; badge.style.left = '0';
+                badge.style.background = 'rgba(0,0,0,0.8)';
+                badge.style.color = '#FD871F';
+                badge.style.padding = '5px 10px';
+                
+                const iframe = document.createElement('iframe');
+                iframe.src = url;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                
+                wrapper.appendChild(badge);
+                wrapper.appendChild(iframe);
+                container.appendChild(wrapper);
+            });
+
+            sessionStorage.setItem('gazeGuardPdfUrls', JSON.stringify(uploadedPdfs));
+            removeBtn.style.display = 'block';
+            if(docTypeSelect) docTypeSelect.style.display = 'block';
+            isFileReady = true;
+        }
+
+        function removePDF() {
+            uploadedPdfs = [];
+            sessionStorage.removeItem('gazeGuardPdfUrls');
+            document.getElementById('pdfInput').value = "";
+            updatePdfPreview();
         }
     </script>
 </body>

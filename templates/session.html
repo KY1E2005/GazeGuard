@@ -46,21 +46,49 @@
     </div>
 
     <script>
-        // --- LOAD PDF FROM INDEX.HTML ---
+        // --- LOAD MULTIPLE PDFS AND ADAPT LAYOUT ---
         window.onload = function() {
-            const pdfUrl = sessionStorage.getItem('gazeGuardPdfUrl');
-            if (pdfUrl) {
-                document.getElementById('pdf-viewer').src = pdfUrl;
+            const urlsJson = sessionStorage.getItem('gazeGuardPdfUrls');
+            const docType = sessionStorage.getItem('gazeGuardDocType');
+            const leftPanel = document.querySelector('.left-panel');
+
+            if (urlsJson) {
+                const urls = JSON.parse(urlsJson);
+                if (urls.length > 0) {
+                    leftPanel.innerHTML = ''; 
+                    leftPanel.style.display = 'block'; 
+                    leftPanel.style.overflowY = 'auto'; 
+                    leftPanel.style.scrollBehavior = 'smooth';
+                    
+                    if (docType === 'landscape' && window.innerWidth > 768) {
+                        leftPanel.style.flex = "2.5"; 
+                    } else if (window.innerWidth > 768) {
+                        leftPanel.style.flex = "1.5"; 
+                    }
+
+                    urls.forEach((url, index) => {
+                        if (index > 0) {
+                            const divider = document.createElement('div');
+                            divider.className = 'doc-transition';
+                            divider.innerHTML = `<span>⬇ Transitioning to Document ${index + 1} ⬇</span>`;
+                            leftPanel.appendChild(divider);
+                        }
+
+                        const iframe = document.createElement('iframe');
+                        iframe.src = url;
+                        iframe.className = 'pdf-frame';
+                        leftPanel.appendChild(iframe);
+                    });
+                }
             } else {
-                document.querySelector('.left-panel').innerHTML = "<h3 style='text-align:center; width:100%;'>No Document Uploaded</h3>";
+                leftPanel.innerHTML = "<h3 style='text-align:center; margin-top:50%;'>No Document Uploaded</h3>";
             }
             startCalibration();
         };
 
-        // --- INITIAL CALIBRATION LOGIC ---
+        // --- CALIBRATION LOGIC ---
         function startCalibration() {
             document.getElementById('webcam-feed').src = "{{ url_for('video_feed') }}";
-            
             let count = 3;
             const counterEl = document.getElementById('countdown');
             const interval = setInterval(() => {
@@ -72,6 +100,7 @@
                     counterEl.innerText = "Done!";
                     setTimeout(() => {
                         document.getElementById('calibration-modal').style.display = 'none';
+                        //fetch('/start_record', { method: 'POST' });
                     }, 500);
                 }
             }, 1000);
@@ -85,39 +114,62 @@
             });
         }
 
-        // --- DRAG TO RESIZE LOGIC ---
+        // --- DRAG TO RESIZE ---
         const resizer = document.getElementById('dragMe');
         const leftPanel = document.querySelector('.left-panel');
         let isResizing = false;
 
-        resizer.addEventListener('mousedown', function(e) {
+        function setIframePointerEvents(value) {
+            document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = value);
+        }
+
+        function startResize(e) {
             isResizing = true;
-            document.body.style.cursor = 'ew-resize';
             resizer.classList.add('resizing');
-            document.getElementById('pdf-viewer').style.pointerEvents = 'none';
-        });
+            setIframePointerEvents('none');
+        }
+        resizer.addEventListener('mousedown', startResize);
+        resizer.addEventListener('touchstart', startResize, {passive: true});
 
-        document.addEventListener('mousemove', function(e) {
+        // Perform Drag (Mouse & Touch)
+        function moveResize(e) {
             if (!isResizing) return;
-            
-            let newWidth = e.clientX - 20; 
-            const minWidth = window.innerWidth * 0.40;
-            const maxWidth = window.innerWidth * 0.75;
-            
-            if (newWidth < minWidth) newWidth = minWidth;
-            if (newWidth > maxWidth) newWidth = maxWidth;
-            
-            leftPanel.style.flex = `0 0 ${newWidth}px`;
-        });
+            let clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            let clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
 
-        document.addEventListener('mouseup', function(e) {
+            if (window.innerWidth <= 768) {
+                document.body.style.cursor = 'ns-resize';
+                let newHeight = clientY - 40;
+                const minHeight = window.innerHeight * 0.30;
+                const maxHeight = window.innerHeight * 0.70;
+                
+                if (newHeight < minHeight) newHeight = minHeight;
+                if (newHeight > maxHeight) newHeight = maxHeight;
+                leftPanel.style.flex = `0 0 ${newHeight}px`;
+            } else {
+                document.body.style.cursor = 'ew-resize';
+                let newWidth = clientX - 20; 
+                const minWidth = window.innerWidth * 0.40;
+                const maxWidth = window.innerWidth * 0.75;
+                
+                if (newWidth < minWidth) newWidth = minWidth;
+                if (newWidth > maxWidth) newWidth = maxWidth;
+                leftPanel.style.flex = `0 0 ${newWidth}px`;
+            }
+        }
+        document.addEventListener('mousemove', moveResize);
+        document.addEventListener('touchmove', moveResize, {passive: true});
+
+        function stopResize(e) {
             if (isResizing) {
                 isResizing = false;
                 document.body.style.cursor = 'default';
                 resizer.classList.remove('resizing');
-                document.getElementById('pdf-viewer').style.pointerEvents = 'auto';
+                setIframePointerEvents('auto');
             }
-        });
+        }
+        document.addEventListener('mouseup', stopResize);
+        document.addEventListener('touchend', stopResize);
 
         function toggleVisual(feature) {
             fetch(`/toggle_visual/${feature}`)

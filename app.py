@@ -292,15 +292,22 @@ def toggle_visual(feature):
 
 @app.route('/upload_pdf', methods=['POST'])
 def upload_pdf():
-    if 'file' not in request.files:
+    # Retrieve a list of files.
+    files = request.files.getlist('file')
+    if not files:
         return jsonify({'error': 'No file part'}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    if file:
-        filename = file.filename
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return jsonify({'url': f'/uploads/{filename}'})
+    
+    urls = []
+    for file in files:
+        if file.filename != '':
+            filename = file.filename
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            urls.append(f'/uploads/{filename}')
+            
+    if not urls:
+        return jsonify({'error': 'No selected files'}), 400
+        
+    return jsonify({'urls': urls})
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
