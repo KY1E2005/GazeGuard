@@ -159,15 +159,18 @@ def generate_frames():
                     
                     score, duration, status = scorer.get_score(ear, gaze, pitch, yaw, phone_detected)
                     
-                    # --- GAZE-DOMINANT LOOK AWAY LOGIC ---
-                    bad_gaze = (gaze < 0.35) or (gaze > 0.65) # Eyes clearly off screen
-                    bad_pose = (abs(pitch) > 25) or (abs(yaw) > 30) or (abs(roll) > 25) 
-                    drifting_gaze = (gaze < 0.40) or (gaze > 0.60)
-                    
-                    # Only flag if eyes are gone, OR if head is heavily turned AND eyes are drifting
-                    is_looking_away = bad_gaze or (bad_pose and drifting_gaze)
+                    # --- BALANCED LOOK AWAY LOGIC ---
+                    is_looking_down_severe = pitch > 15
+                    is_looking_down_mild = pitch > 8
+                    is_looking_up = pitch < -25
+                    is_turning = abs(yaw) > 20      
+                    severe_pose = is_looking_down_severe or is_looking_up or (abs(yaw) > 35)
+                    severe_gaze = (gaze < 0.35) or (gaze > 0.65)
+                    moderate_pose = is_looking_down_mild or is_turning or (abs(roll) > 20)
+                    drifting_gaze = (gaze < 0.42) or (gaze > 0.58)
+                    is_looking_away = severe_pose or severe_gaze or (moderate_pose and drifting_gaze)
 
-                    if bad_pose and not is_looking_away:
+                    if moderate_pose and not is_looking_away:
                         warn_text = "Please keep your head straight"
                         w_size = cv2.getTextSize(warn_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
                         cv2.putText(frame, warn_text, ((width - w_size[0]) // 2, height - 60), 
@@ -176,7 +179,8 @@ def generate_frames():
                     if is_looking_away:
                         if look_away_start is None:
                             look_away_start = time.time()
-                        if time.time() - look_away_start > 5.0:
+                        threshold_time = 3.0 if is_looking_down_severe else 4.0
+                        if time.time() - look_away_start > threshold_time:
                             should_play_beep = True
                             cv2.putText(frame, "Stay Focus", (int(width/2 - 100), int(height * 0.3)), 
                                        cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)

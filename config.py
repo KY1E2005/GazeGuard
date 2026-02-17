@@ -19,8 +19,8 @@ COLOR_YELLOW = (0, 255, 255)
 EAR_THRESHOLD = 0.20          # Below this = BLINK
 GAZE_LEFT_THRESHOLD = 0.35    # Below this = Looking LEFT
 GAZE_RIGHT_THRESHOLD = 2.2   # Above this = Looking RIGHT
-PITCH_THRESHOLD = 25  # Up/Down limit
-YAW_THRESHOLD = 30    # Left/Right limit
+PITCH_THRESHOLD = 15  # Up/Down limit
+YAW_THRESHOLD = 20    # Left/Right limit
 
 # --- Scoring Weights ---
 WEIGHT_GAZE = 0.4

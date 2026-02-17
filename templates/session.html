@@ -40,12 +40,29 @@
     </div>
 
     <div class="bottom-bar">
+        <div class="session-timer">
+            <span id="timer-display">00:00:00</span>
+        </div>
         <button class="end-session-btn" onclick="endSession()">
             End Session <span class="icon-x">✖</span>
         </button>
     </div>
 
     <script>
+        // --- GLOBAL TIMER VARIABLES ---
+        let sessionTimerInterval;
+        let sessionSeconds = 0;
+
+        function startTimer() {
+            sessionTimerInterval = setInterval(() => {
+                sessionSeconds++;
+                const hrs = String(Math.floor(sessionSeconds / 3600)).padStart(2, '0');
+                const mins = String(Math.floor((sessionSeconds % 3600) / 60)).padStart(2, '0');
+                const secs = String(sessionSeconds % 60).padStart(2, '0');
+                document.getElementById('timer-display').innerText = `${hrs}:${mins}:${secs}`;
+            }, 1000);
+        }
+
         // --- LOAD MULTIPLE PDFS AND ADAPT LAYOUT ---
         window.onload = function() {
             const urlsJson = sessionStorage.getItem('gazeGuardPdfUrls');
@@ -101,6 +118,7 @@
                     setTimeout(() => {
                         document.getElementById('calibration-modal').style.display = 'none';
                         //fetch('/start_record', { method: 'POST' });
+                        startTimer();
                     }, 500);
                 }
             }, 1000);

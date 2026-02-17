@@ -24,6 +24,7 @@
             width: 100%;
             top: 0;
             z-index: 9999;
+            pointer-events: none;
         }
 
         .navbar-brand img {
@@ -33,6 +34,7 @@
         }
         .logo {
             float: left;
+            pointer-events: auto;
         }
         .hero-section {
             position: relative;
@@ -369,13 +371,16 @@ Session.html
     object-fit: contain;
     display: block;
     background-color: #000;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
 }
 
 .bottom-bar {
     height: 45px;
     background-color: #4a4a4a;
     display: flex; 
-    justify-content: flex-end; 
+    justify-content: space-between; 
     align-items: center;
     padding: 0 30px; 
     color: white; 
@@ -397,11 +402,29 @@ Session.html
     align-items: center; 
     gap: 10px;
 }
-.end-session-btn:hover { color: #ff1a1a; }
+.end-session-btn:hover { 
+    color: #ff1a1a; 
+}
 .icon-x {
-    background: #ff4d4d; color: white; border-radius: 50%;
-    width: 24px; height: 24px; display: inline-flex;
-    justify-content: center; align-items: center; font-size: 16px;
+    background: #ff4d4d; 
+    color: white; 
+    border-radius: 50%;
+    width: 24px; 
+    height: 24px; 
+    display: inline-flex;
+    justify-content: center; 
+    align-items: center; 
+    font-size: 16px;
+}
+
+.session-timer{
+    font-size: 18px;
+    font-family: monospace;
+    font-weight: 600;
+    color: #abc4b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .resizer {
