@@ -65,7 +65,7 @@
         <div class="container">
             <div class="row margin-b-40 row-heading">
                 <div class="col-md-6 col-sm-12">
-                    <h2 style="color: var(--brand-color) !important; margin-top: 10px;">Active Session</h2>
+                    <h2 style="color: var(--brand-color) !important; margin-top: 10px;">SESSION</h2>
                 </div>
                 <div class="col-md-6 col-sm-12 text-right mobile-center-btn">
                     <button id="sessionBtn" onclick="toggleSession()" class="btn-brand btn-start">Start Session</button>
@@ -86,12 +86,12 @@
                 <div class="col-md-5">
                     <div class="doc-wrapper">
                         <h3>Study Material</h3>
-                        <p class="text-muted">Upload a PDF to view here.</p>
+                        <p class="text-muted">Upload a File to view here.</p>
                         
-                        <input type="file" id="pdfInput" class="form-control" accept="application/pdf" multiple>
+                        <input type="file" id="pdfInput" class="form-control" accept="application/pdf, image/png, image/jpeg, video/mp4, video/webm" multiple>
                         <button id="removePdfBtn" class="btn-remove-pdf" onclick="removePDF()">✕ Remove File</button>
                         <div class="pdf-viewer-container">
-                            <p class="placeholder-text">PDF Preview</p>
+                            <p class="placeholder-text">PREVIEW</p>
                             <iframe id="pdf-preview"></iframe>
                         </div>
                     </div>
@@ -164,7 +164,7 @@
             if (!isSessionActive) {
                 // START ATTEMPT
                 if (!isFileReady) {
-                    showToast("Please upload a PDF document before starting the session.", "error");
+                    showToast("Please upload a File before starting the session.", "error");
                     return;
                 }
                 window.location.href = "/session";
@@ -215,7 +215,7 @@
             const files = e.target.files;
             if (files.length === 0) return;
             if (uploadedPdfs.length + files.length > 3) {
-                showToast("Maximum of 3 PDF files ONLY allowed per session.", "error");
+                showToast("Maximum of 3 files ONLY allowed per session.", "error");
                 this.value = ""; 
                 return;
             }
@@ -226,12 +226,26 @@
             }
 
             fetch('/upload_pdf', { method: 'POST', body: formData })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 413) {
+                        throw new Error("File is too large! Maximum limit is 200MB.");
+                    }
+                    throw new Error("An error occurred during upload.");
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.urls) {
                     uploadedPdfs = uploadedPdfs.concat(data.urls);
                     updatePdfPreview();
+                } else if (data.error) {
+                    showToast(data.error, "error");
                 }
+            })
+            .catch(error => {
+                showToast(error.message, "error");
+                document.getElementById('pdfInput').value = ""; 
             });
         });
 
@@ -243,7 +257,7 @@
             container.innerHTML = '';
             
             if (uploadedPdfs.length === 0) {
-                container.innerHTML = '<p class="placeholder-text">PDF Preview</p>';
+                container.innerHTML = '<p class="placeholder-text">PDF/Media Preview</p>';
                 container.style.overflowY = 'hidden';
                 removeBtn.style.display = 'none';
                 if(docTypeSelect) docTypeSelect.style.display = 'none';
@@ -261,21 +275,35 @@
                 wrapper.style.borderBottom = '5px solid #FD871F';
                 
                 const badge = document.createElement('div');
-                badge.innerText = `Document ${index + 1}`;
+                badge.innerText = `File ${index + 1}`;
                 badge.style.position = 'absolute';
                 badge.style.top = '0'; badge.style.left = '0';
                 badge.style.background = 'rgba(0,0,0,0.8)';
                 badge.style.color = '#FD871F';
                 badge.style.padding = '5px 10px';
+                badge.style.zIndex = '10';
                 
-                const iframe = document.createElement('iframe');
-                iframe.src = url;
-                iframe.style.width = '100%';
-                iframe.style.height = '100%';
-                iframe.style.border = 'none';
+                const ext = url.split('.').pop().toLowerCase();
+                let mediaElement;
+                
+                if (['mp4', 'webm'].includes(ext)) {
+                    mediaElement = document.createElement('video');
+                    mediaElement.controls = true;
+                    mediaElement.style.backgroundColor = '#000';
+                } else if (['png', 'jpg', 'jpeg'].includes(ext)) {
+                    mediaElement = document.createElement('img');
+                    mediaElement.style.objectFit = 'contain';
+                } else {
+                    mediaElement = document.createElement('iframe');
+                }
+                
+                mediaElement.src = url;
+                mediaElement.style.width = '100%';
+                mediaElement.style.height = '100%';
+                mediaElement.style.border = 'none';
                 
                 wrapper.appendChild(badge);
-                wrapper.appendChild(iframe);
+                wrapper.appendChild(mediaElement);
                 container.appendChild(wrapper);
             });
 

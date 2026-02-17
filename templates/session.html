@@ -53,17 +53,7 @@
         let sessionTimerInterval;
         let sessionSeconds = 0;
 
-        function startTimer() {
-            sessionTimerInterval = setInterval(() => {
-                sessionSeconds++;
-                const hrs = String(Math.floor(sessionSeconds / 3600)).padStart(2, '0');
-                const mins = String(Math.floor((sessionSeconds % 3600) / 60)).padStart(2, '0');
-                const secs = String(sessionSeconds % 60).padStart(2, '0');
-                document.getElementById('timer-display').innerText = `${hrs}:${mins}:${secs}`;
-            }, 1000);
-        }
-
-        // --- LOAD MULTIPLE PDFS AND ADAPT LAYOUT ---
+        // --- LOAD MEDIA AND ADAPT LAYOUT ---
         window.onload = function() {
             const urlsJson = sessionStorage.getItem('gazeGuardPdfUrls');
             const docType = sessionStorage.getItem('gazeGuardDocType');
@@ -76,6 +66,7 @@
                     leftPanel.style.display = 'block'; 
                     leftPanel.style.overflowY = 'auto'; 
                     leftPanel.style.scrollBehavior = 'smooth';
+                    leftPanel.style.backgroundColor = '#111';
                     
                     if (docType === 'landscape' && window.innerWidth > 768) {
                         leftPanel.style.flex = "2.5"; 
@@ -87,22 +78,93 @@
                         if (index > 0) {
                             const divider = document.createElement('div');
                             divider.className = 'doc-transition';
-                            divider.innerHTML = `<span>⬇ Transitioning to Document ${index + 1} ⬇</span>`;
+                            divider.innerHTML = `<span>⬇ Transitioning to File ${index + 1} ⬇</span>`;
                             leftPanel.appendChild(divider);
                         }
 
-                        const iframe = document.createElement('iframe');
-                        iframe.src = url;
-                        iframe.className = 'pdf-frame';
-                        leftPanel.appendChild(iframe);
+                        const ext = url.split('.').pop().toLowerCase();
+                        let mediaElement;
+                        
+                        if (['mp4', 'webm'].includes(ext)) {
+                            mediaElement = document.createElement('video');
+                            mediaElement.controls = true;
+                            mediaElement.src = url;
+                            mediaElement.className = 'pdf-frame';
+                        } else if (['png', 'jpg', 'jpeg'].includes(ext)) {
+                            mediaElement = setupZoomableImage(url);
+                        } else {
+                            mediaElement = document.createElement('iframe');
+                            mediaElement.src = url;
+                            mediaElement.className = 'pdf-frame';
+                        }
+
+                        leftPanel.appendChild(mediaElement);
                     });
                 }
             } else {
-                leftPanel.innerHTML = "<h3 style='text-align:center; margin-top:50%;'>No Document Uploaded</h3>";
+                leftPanel.innerHTML = "<h3 style='text-align:center; margin-top:50%; color:white;'>No Document Uploaded</h3>";
             }
             startCalibration();
         };
 
+        // ---IMAGE ZOOM & PAN ---
+        function setupZoomableImage(url) {
+            const container = document.createElement('div');
+            container.className = 'zoom-container';
+
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'zoom-target';
+            img.ondragstart = (e) => e.preventDefault();
+
+            const controls = document.createElement('div');
+            controls.className = 'zoom-controls';
+            controls.innerHTML = `<div class="zoom-btn zoom-out">-</div><div class="zoom-btn zoom-in">+</div>`;
+            
+            container.appendChild(img);
+            container.appendChild(controls);
+
+            let scale = 1;
+            let panning = false;
+            let pointX = 0, pointY = 0; 
+            let startX = 0, startY = 0; 
+
+            function setTransform() {
+                scale = Math.min(Math.max(1, scale), 5);
+                if (scale === 1) { pointX = 0; pointY = 0; }
+                img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+            }
+
+            controls.querySelector('.zoom-in').onclick = (e) => { scale += 0.5; setTransform(); e.stopPropagation(); };
+            controls.querySelector('.zoom-out').onclick = (e) => { scale -= 0.5; setTransform(); e.stopPropagation(); };
+            container.onwheel = (e) => {
+                e.preventDefault();
+                scale += e.deltaY * -0.005; 
+                setTransform();
+            };
+            img.onmousedown = (e) => {
+                if (scale > 1) {
+                    e.preventDefault();
+                    startX = e.clientX - pointX;
+                    startY = e.clientY - pointY;
+                    panning = true;
+                }
+            };
+
+            img.onmousemove = (e) => {
+                if (!panning) return;
+                e.preventDefault();
+                pointX = e.clientX - startX;
+                pointY = e.clientY - startY;
+                setTransform();
+            };
+
+            img.onmouseup = () => { panning = false; };
+            img.onmouseleave = () => { panning = false; };
+
+            return container;
+        }
+        
         // --- CALIBRATION LOGIC ---
         function startCalibration() {
             document.getElementById('webcam-feed').src = "{{ url_for('video_feed') }}";
@@ -117,28 +179,37 @@
                     counterEl.innerText = "Done!";
                     setTimeout(() => {
                         document.getElementById('calibration-modal').style.display = 'none';
-                        //fetch('/start_record', { method: 'POST' });
-                        startTimer();
+                        startTimer(); 
                     }, 500);
                 }
             }, 1000);
         }
 
-        // --- END SESSION ---
+        // --- GLOBAL TIMER FUNCTIONS ---
+        function startTimer() {
+            sessionTimerInterval = setInterval(() => {
+                sessionSeconds++;
+                const hrs = String(Math.floor(sessionSeconds / 3600)).padStart(2, '0');
+                const mins = String(Math.floor((sessionSeconds % 3600) / 60)).padStart(2, '0');
+                const secs = String(sessionSeconds % 60).padStart(2, '0');
+                document.getElementById('timer-display').innerText = `${hrs}:${mins}:${secs}`;
+            }, 1000);
+        }
+
         function endSession() {
             document.getElementById('webcam-feed').src = ""; 
             fetch('/shutdown_camera').then(() => {
-                window.location.href = "/dashboard"; 
+                window.location.href = "/"; 
             });
         }
 
-        // --- DRAG TO RESIZE ---
+        // --- DRAG TO RESIZE LOGIC ---
         const resizer = document.getElementById('dragMe');
         const leftPanel = document.querySelector('.left-panel');
         let isResizing = false;
 
         function setIframePointerEvents(value) {
-            document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = value);
+            document.querySelectorAll('iframe, .zoom-container').forEach(el => el.style.pointerEvents = value);
         }
 
         function startResize(e) {
@@ -149,18 +220,17 @@
         resizer.addEventListener('mousedown', startResize);
         resizer.addEventListener('touchstart', startResize, {passive: true});
 
-        // Perform Drag (Mouse & Touch)
         function moveResize(e) {
             if (!isResizing) return;
+            
             let clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
             let clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
 
             if (window.innerWidth <= 768) {
                 document.body.style.cursor = 'ns-resize';
-                let newHeight = clientY - 40;
+                let newHeight = clientY - 40; 
                 const minHeight = window.innerHeight * 0.30;
                 const maxHeight = window.innerHeight * 0.70;
-                
                 if (newHeight < minHeight) newHeight = minHeight;
                 if (newHeight > maxHeight) newHeight = maxHeight;
                 leftPanel.style.flex = `0 0 ${newHeight}px`;
@@ -169,7 +239,6 @@
                 let newWidth = clientX - 20; 
                 const minWidth = window.innerWidth * 0.40;
                 const maxWidth = window.innerWidth * 0.75;
-                
                 if (newWidth < minWidth) newWidth = minWidth;
                 if (newWidth > maxWidth) newWidth = maxWidth;
                 leftPanel.style.flex = `0 0 ${newWidth}px`;
@@ -194,11 +263,7 @@
             .then(response => response.json())
             .then(data => {
                 const btn = document.getElementById('btn-landmarks');
-                if (data.state) {
-                    btn.style.opacity = '1';
-                } else {
-                    btn.style.opacity = '0.5';
-                }
+                if (data.state) btn.style.opacity = '1'; else btn.style.opacity = '0.5';
             });
         }
     </script>

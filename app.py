@@ -16,9 +16,14 @@ from core.detector import ObjectDetector
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
+# --- CONFIGURATION ---
 UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'gazeguard_uploads')
+RECORDS_FOLDER = os.path.join(tempfile.gettempdir(), 'gazeguard_records')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(RECORDS_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['RECORDS_FOLDER'] = RECORDS_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024
 
 # visual state
 ui_state = {
