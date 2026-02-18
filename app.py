@@ -30,6 +30,14 @@ ui_state = {
     'show_landmarks': True
 }
 
+# --- GLOBAL STATUS STATE ---
+current_system_status = {
+    'brightness': 0,
+    'lighting_ok': False,
+    'face_detected': False,
+    'centered': False
+}
+
 # --- AUDIO SETUP ---
 pygame.mixer.init()
 assets_dir = os.path.join(os.path.dirname(__file__), "assets")
@@ -97,9 +105,21 @@ def generate_frames():
             font_scale = width / 640.0
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             global_brightness = np.mean(gray)
-
             phone_detected, phone_box = detector.detect(frame)
             results = tracker.process_frame(frame)
+
+            global current_system_status
+            is_centered = False
+            if results.multi_face_landmarks:
+                face_x = results.multi_face_landmarks[0].landmark[1].x 
+                is_centered = 0.3 < face_x < 0.7 
+
+            current_system_status = {
+                'brightness': int(global_brightness),
+                'lighting_ok': bool(global_brightness > 60),
+                'face_detected': bool(results.multi_face_landmarks),
+                'centered': bool(is_centered)
+            }
 
             should_play_beep = False
             system_active = False
@@ -341,6 +361,10 @@ def upload_pdf():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/get_status')
+def get_status():
+    return jsonify(current_system_status)
 
 if __name__ == "__main__":
     app.run(debug=True)

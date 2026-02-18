@@ -12,11 +12,34 @@
 <body class="session-body">
 
     <div id="calibration-modal">
-        <div class="calibration-box">
-            <h2>GazeGuard Calibration</h2>
-            <p>Please look at the center of your screen to establish a baseline.</p>
-            <div class="spinner"></div>
-            <h1 id="countdown">3</h1>
+        <div class="system-check-box">
+            <h2 style="color:white; margin-bottom:10px;">Pre-Session Check</h2>
+            <p>Please ensure all conditions are met to begin.</p>
+            
+            <div class="check-list">
+                <div class="check-item" id="check-light">
+                    <div class="label">
+                        <span>☀</span> Lighting
+                    </div>
+                    <div class="status-icon">Checking...</div>
+                </div>
+
+                <div class="check-item" id="check-face">
+                    <div class="label">
+                        <span>☺</span> Face Detected
+                    </div>
+                    <div class="status-icon">Checking...</div>
+                </div>
+
+                <div class="check-item" id="check-center">
+                    <div class="label">
+                        <span>⌖</span> Centered
+                    </div>
+                    <div class="status-icon">Checking...</div>
+                </div>
+            </div>
+
+            <button id="btn-start-session" class="btn-brand" disabled onclick="confirmStart()">Start Session</button>
         </div>
     </div>
 
@@ -165,24 +188,54 @@
             return container;
         }
         
-        // --- CALIBRATION LOGIC ---
+        let checkInterval;
+         // --- CALIBRATION LOGIC ---
         function startCalibration() {
+            initSystemCheck();
+        }
+
+        function initSystemCheck() {
             document.getElementById('webcam-feed').src = "{{ url_for('video_feed') }}";
-            let count = 3;
-            const counterEl = document.getElementById('countdown');
-            const interval = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    counterEl.innerText = count;
-                } else {
-                    clearInterval(interval);
-                    counterEl.innerText = "Done!";
-                    setTimeout(() => {
-                        document.getElementById('calibration-modal').style.display = 'none';
-                        startTimer(); 
-                    }, 500);
-                }
-            }, 1000);
+            const btn = document.getElementById('btn-start-session');
+            checkInterval = setInterval(() => {
+                fetch('/get_status')
+                .then(res => res.json())
+                .then(data => {
+                    updateCheckItem('check-light', data.lighting_ok, data.brightness < 60 ? "Too Dark" : "Good");
+                    updateCheckItem('check-face', data.face_detected, data.face_detected ? "Detected" : "No Face");
+                    updateCheckItem('check-center', data.centered, data.centered ? "Centered" : "Adjust Position");
+
+                    // Only enable button if ALL checks pass
+                    if (data.lighting_ok && data.face_detected && data.centered) {
+                        btn.disabled = false;
+                        btn.classList.add('btn-start'); 
+                        btn.innerText = "Start Session";
+                    } else {
+                        btn.disabled = true;
+                        btn.classList.remove('btn-start');
+                        btn.innerText = "Waiting for conditions...";
+                    }
+                });
+            }, 500);
+        }
+
+        function updateCheckItem(id, isOk, statusText) {
+            const item = document.getElementById(id);
+            const icon = item.querySelector('.status-icon');
+            
+            if (isOk) {
+                item.classList.add('success');
+                icon.innerHTML = "✔ " + statusText;
+            } else {
+                item.classList.remove('success');
+                icon.innerHTML = "✖ " + statusText;
+            }
+        }
+
+        function confirmStart() {
+            clearInterval(checkInterval);
+            document.getElementById('calibration-modal').style.display = 'none';
+            startTimer();
         }
 
         // --- GLOBAL TIMER FUNCTIONS ---
