@@ -59,6 +59,17 @@ def get_camera():
     return camera
 
 def generate_frames():
+    def create_error_frame(message):
+        blank_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        text_size = cv2.getTextSize(message, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
+        text_x = (640 - text_size[0]) // 2
+        text_y = (480 + text_size[1]) // 2
+        cv2.putText(blank_frame, message, (text_x, text_y), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        _, buffer = cv2.imencode('.jpg', blank_frame)
+        return (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+
     cam = get_camera()
     
     was_phone_detected = False
@@ -67,14 +78,23 @@ def generate_frames():
 
     try:
         while True:
+            # SAFETY CHECK: If camera failed to open
+            if cam is None or not cam.isOpened():
+                yield create_error_frame("Camera Disconnected!")
+                time.sleep(1)
+                cam = get_camera()
+                continue
             success, frame = cam.read()
             if not success:
-                break
+                yield create_error_frame("Camera Blocked/Unavailable")
+                cam.release()
+                time.sleep(1)
+                cam = get_camera()
+                continue
             
             frame = cv2.flip(frame, 1)
             height, width, _ = frame.shape
             font_scale = width / 640.0
-
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             global_brightness = np.mean(gray)
 

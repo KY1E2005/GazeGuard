@@ -363,14 +363,13 @@ Session.html
 .camera-box {
     width: 100%; aspect-ratio: 4/3; background: #333;
     border-radius: 20px; overflow: hidden; position: relative;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
 }
 #webcam-feed {
     width: 100%; 
     height: 100%; 
     object-fit: contain;
     display: block;
-    background-color: #000;
+    background-color: #d8d8d8;
     user-select: none;
     -webkit-user-drag: none;
     pointer-events: none;
