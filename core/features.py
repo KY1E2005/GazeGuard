@@ -60,3 +60,15 @@ class FeatureExtractor:
         
         # Return degrees
         return angles[0], angles[1], angles[2]
+    
+    def get_MAR(self, landmarks):
+        import math
+        top_lip = landmarks[13]
+        bottom_lip = landmarks[14]
+        left_lip = landmarks[78]
+        right_lip = landmarks[308]
+        vert_dist = math.hypot(top_lip.x - bottom_lip.x, top_lip.y - bottom_lip.y)
+        horiz_dist = math.hypot(left_lip.x - right_lip.x, left_lip.y - right_lip.y)
+        if horiz_dist == 0:
+            return 0.0
+        return vert_dist / horiz_dist

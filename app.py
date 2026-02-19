@@ -16,7 +16,6 @@ from core.detector import ObjectDetector
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-# --- CONFIGURATION ---
 UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'gazeguard_uploads')
 RECORDS_FOLDER = os.path.join(tempfile.gettempdir(), 'gazeguard_records')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -201,6 +200,7 @@ def generate_frames():
                     ear = features.get_EAR(landmarks)
                     gaze = features.get_gaze_ratio(landmarks)
                     pitch, yaw, roll = features.get_head_pose(landmarks, frame.shape)
+                    mar = features.get_MAR(landmarks)
                     
                     score, duration, status = scorer.get_score(ear, gaze, pitch, yaw, phone_detected)
                     
@@ -236,22 +236,35 @@ def generate_frames():
                         should_play_beep = True
                         cv2.putText(frame, "Stay Focus", (int(width/2 - 100), int(height * 0.3)), 
                                    cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)
+                        
+                        # --- MAR ACTION LOGIC ---
+                    action_text = ""
+                    if mar > 0.45:
+                        action_text = "Action: Yawning"
+                    elif mar > 0.25:
+                        action_text = "Action: Talking/Smiling"
+                        
+                    if action_text:
+                        cv2.putText(frame, action_text, (30, int(130 * font_scale)), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 165, 255), 2)
 
-                    # --- SINGLE LANDMARKS TOGGLE ---
+                    # --- VISUALS TOGGLE ---
                     if ui_state['show_landmarks']:
+                        # 1. Draw Mesh
                         mp_drawing.draw_landmarks(
                             image=frame, landmark_list=main_face,
                             connections=mp_face_mesh.FACEMESH_TESSELATION,
                             landmark_drawing_spec=None,
                             connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
+                        # 2. Draw Irises
                         mp_drawing.draw_landmarks(
                             image=frame, landmark_list=main_face,
                             connections=mp_face_mesh.FACEMESH_IRISES,
                             landmark_drawing_spec=None,
                             connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style())
-                        
-                    cv2.putText(frame, f"Gaze: {gaze:.2f} | Pitch: {pitch:.0f}", (30, height - 30),
-                                cv2.FONT_HERSHEY_PLAIN, 1.0 * font_scale, (255, 255, 0), 1)
+                        # 3. Draw Debug Data
+                        cv2.putText(frame, f"Gaze: {gaze:.2f} | Pitch: {pitch:.0f} | MAR: {mar:.2f}", 
+                                    (30, height - 30), cv2.FONT_HERSHEY_PLAIN, 1.0 * font_scale, (255, 255, 0), 1)
 
                     color = (0, 255, 0) if score > 50 else (0, 0, 255)
                     cv2.putText(frame, f"Score: {score}%", (30, int(50 * font_scale)), 
@@ -367,4 +380,4 @@ def get_status():
     return jsonify(current_system_status)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)
