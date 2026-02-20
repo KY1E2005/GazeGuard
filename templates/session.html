@@ -38,7 +38,14 @@
                     <div class="status-icon">Checking...</div>
                 </div>
             </div>
-
+            <div class="check-list">
+                </div>
+            <div style="margin-bottom: 20px; text-align: left; background: #111; padding: 12px; border-radius: 8px; border: 1px solid #333;">
+                <label style="color: #ccc; display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; font-size: 15px;">
+                    <input type="checkbox" id="record-session-checkbox" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    Record this session (Video and Analytics)
+                </label>
+            </div>
             <button id="btn-start-session" class="btn-brand" disabled onclick="confirmStart()">Start Session</button>
         </div>
     </div>
@@ -46,6 +53,7 @@
     <div class="top-indicator">
         <span class="dot"></span> Session/Tracking Active
     </div>
+    <canvas id="video-canvas" width="640" height="480" style="display:none;"></canvas>
 
     <div class="workspace">
         <div class="left-panel">
@@ -232,10 +240,26 @@
             }
         }
 
+        // --- DATA LOGGER VARIABLES ---
+        let isRecordingEnabled = false;
+        let sessionDataLog = [];
+        let dataLoggerInterval;
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let canvasDrawInterval;
+
         function confirmStart() {
             clearInterval(checkInterval);
+            //Check if the user opted in to recording
+            isRecordingEnabled = document.getElementById('record-session-checkbox').checked;
             document.getElementById('calibration-modal').style.display = 'none';
             startTimer();
+            //Start the silent data logger if opted in
+            if (isRecordingEnabled) {
+                startDataLogger();
+                startVideoRecorder();
+            }
         }
 
         // --- GLOBAL TIMER FUNCTIONS ---
@@ -249,11 +273,89 @@
             }, 1000);
         }
 
+        // ---THE DATA LOGGER ---
+        function startDataLogger() {
+            dataLoggerInterval = setInterval(() => {
+                fetch('/get_status')
+                .then(res => res.json())
+                .then(data => {
+                    sessionDataLog.push({
+                        time: sessionSeconds,
+                        score: data.score || 0,
+                        status: data.status || "Unknown",
+                        beep_active: data.beep_active || false,
+                        phone_detected: data.phone_detected || false,
+                        mar_action: data.mar_action || "None"
+                    });
+                });
+            }, 1000); 
+        }
+
+        function startVideoRecorder() {
+            const img = document.getElementById('webcam-feed');
+            const canvas = document.getElementById('video-canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvasDrawInterval = setInterval(() => {
+                if (img.complete && img.naturalWidth !== 0) {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                }
+            }, 1000 / 15);
+
+            // Capture the canvas stream and start recording
+            const stream = canvas.captureStream(15);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                await saveVideoToDB(blob); 
+                window.location.href = "/dashboard"; 
+            };
+
+            mediaRecorder.start();
+        }
+
+        function saveVideoToDB(blob) {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("GazeGuardDB", 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains("sessions")) {
+                        db.createObjectStore("sessions");
+                    }
+                };
+                request.onsuccess = (e) => {
+                    const db = e.target.result;
+                    const tx = db.transaction("sessions", "readwrite");
+                    const store = tx.objectStore("sessions");
+                    store.put(blob, "latest_video");
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject();
+                };
+            });
+        }
+
         function endSession() {
             document.getElementById('webcam-feed').src = ""; 
-            fetch('/shutdown_camera').then(() => {
-                window.location.href = "/"; 
-            });
+            
+            if (isRecordingEnabled && sessionDataLog.length > 0) {
+                clearInterval(dataLoggerInterval);
+                sessionStorage.setItem('gazeGuardSessionData', JSON.stringify(sessionDataLog));
+                sessionStorage.setItem('gazeGuardSessionDuration', sessionSeconds);
+                clearInterval(canvasDrawInterval);
+                mediaRecorder.stop();
+                fetch('/shutdown_camera');
+            } else {
+                fetch('/shutdown_camera').then(() => {
+                    window.location.href = "/"; 
+                });
+            }
         }
 
         // --- DRAG TO RESIZE LOGIC ---

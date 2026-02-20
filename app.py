@@ -34,7 +34,11 @@ current_system_status = {
     'brightness': 0,
     'lighting_ok': False,
     'face_detected': False,
-    'centered': False
+    'centered': False,
+    'score': 0,           
+    'status': "Unknown",    
+    'beep_active': False,   
+    'phone_detected': False
 }
 
 # --- AUDIO SETUP ---
@@ -82,17 +86,23 @@ def generate_frames():
     was_phone_detected = False
     is_beep_playing = False
     look_away_start = None
-
+    
+    global current_system_status
     try:
         while True:
             # SAFETY CHECK: If camera failed to open
             if cam is None or not cam.isOpened():
+                current_system_status.update({'lighting_ok': False, 'face_detected': False, 'centered': False, 'brightness': 0})
                 yield create_error_frame("Camera Disconnected!")
                 time.sleep(1)
                 cam = get_camera()
                 continue
+                
             success, frame = cam.read()
+            
+            # SAFETY CHECK: If camera is open but returning no frames (Privacy Shutter)
             if not success:
+                current_system_status.update({'lighting_ok': False, 'face_detected': False, 'centered': False, 'brightness': 0})
                 yield create_error_frame("Camera Blocked/Unavailable")
                 cam.release()
                 time.sleep(1)
@@ -107,24 +117,24 @@ def generate_frames():
             phone_detected, phone_box = detector.detect(frame)
             results = tracker.process_frame(frame)
 
-            global current_system_status
             is_centered = False
             if results.multi_face_landmarks:
                 face_x = results.multi_face_landmarks[0].landmark[1].x 
                 is_centered = 0.3 < face_x < 0.7 
 
-            current_system_status = {
+            current_system_status.update({
                 'brightness': int(global_brightness),
-                'lighting_ok': bool(global_brightness > 60),
+                'lighting_ok': bool(global_brightness > 80),
                 'face_detected': bool(results.multi_face_landmarks),
                 'centered': bool(is_centered)
-            }
+            })
 
             should_play_beep = False
             system_active = False
-
+            current_action = "None"
+            
             if not results.multi_face_landmarks:
-                if global_brightness < 60: 
+                if global_brightness < 65: 
                     text1 = "GazeGuard disabled due to poor lighting"
                     text2 = "Please find suitable lighting conditions"
                     t1_size = cv2.getTextSize(text1, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
@@ -238,14 +248,13 @@ def generate_frames():
                                    cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)
                         
                         # --- MAR ACTION LOGIC ---
-                    action_text = ""
                     if mar > 0.45:
-                        action_text = "Action: Yawning"
+                        current_action = "Yawning"
                     elif mar > 0.25:
-                        action_text = "Action: Talking/Smiling"
+                        current_action = "Talking/Smiling"
                         
-                    if action_text:
-                        cv2.putText(frame, action_text, (30, int(130 * font_scale)), 
+                    if current_action != "None":
+                        cv2.putText(frame, f"Action: {current_action}", (30, int(130 * font_scale)), 
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (0, 165, 255), 2)
 
                     # --- VISUALS TOGGLE ---
@@ -303,6 +312,13 @@ def generate_frames():
                     beep_sound.stop()
                     is_beep_playing = False
 
+            # --- APPEND TRACKING DATA TO GLOBAL STATUS ---
+            current_system_status['score'] = int(score) if system_active else 0
+            current_system_status['status'] = status if system_active else "No Face"
+            current_system_status['beep_active'] = is_beep_playing
+            current_system_status['phone_detected'] = phone_detected
+            current_system_status['mar_action'] = current_action
+            
             ret, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
@@ -322,15 +338,7 @@ def session_page():
 
 @app.route('/dashboard')
 def dashboard():
-    return """
-    <html>
-        <body style="font-family: Arial, sans-serif; text-align: center; padding-top: 100px; background-color: #1a1a1a; color: white;">
-            <h1 style="color: #FD871F; font-size: 3rem;">Dashboard Overview</h1>
-            <p style="font-size: 1.2rem; color: #a6a7aa; margin-bottom: 40px;">Post-Session Review and Analytics will be built here.</p>
-            <a href="/" style="color: white; border: 2px solid #FD871F; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Return Home</a>
-        </body>
-    </html>
-    """
+    return render_template('dashboard.html')
 
 @app.route('/video_feed')
 def video_feed():

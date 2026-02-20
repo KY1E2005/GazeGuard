@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GazeGuard - Dashboard</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/FavIcon.png') }}">
+    <link href="http://fonts.googleapis.com/css?family=Hind:400,600,700" rel="stylesheet" type="text/css">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" type="text/css"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body style="background-color: var(--bg-dark); color: white; padding-top: 70px; margin: 0;">
+
+    <header class="header" style="background: #111 !important; border-bottom: 1px solid #333; left: 0;">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; padding: 5px 15px;">
+            <div class="logo">
+                <a href="/">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GazeGuard" style="height: 45px;">
+                </a>
+            </div>
+            <a href="/" class="btn-brand" style="pointer-events: auto; padding: 8px 20px; margin: 0; font-size: 14px; cursor: pointer;">Return Home</a>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <h2 style="color: white; margin-bottom: 20px;">Session Analytics</h2>
+        
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-duration">00:00</div>
+                <div>Session Duration</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-avg-score">0%</div>
+                <div>Average Concentration</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-distractions">0</div>
+                <div>Severe Distractions</div>
+            </div>
+        </div>
+
+        <div class="review-workspace">
+            <div class="video-panel">
+                <video id="session-video" controls></video>
+            </div>
+            <div class="chart-panel">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+
+        <div class="action-row">
+            <button class="btn-brand btn-data" onclick="downloadData()">Download Data (.json)</button>
+            <button class="btn-brand" onclick="downloadVideo()" id="btn-dl-video" disabled>Download Video (.webm)</button>
+        </div>
+        
+    </div> <div style="text-align: center; margin-top: 20px; margin-bottom: 40px; padding: 0 20px;">
+        <p style="color: #666; font-size: 13px; max-width: 700px; margin: 0 auto; font-style: italic;">
+            *Note: GazeGuard tracking and concentration scoring are evaluated in a controlled environment. Results and tracking accuracy may vary depending on lighting conditions, hardware quality, and the presence of glasses.
+        </p>
+    </div>
+
+    <footer class="footer" style="background: #111; border-top: 1px solid #222; padding: 20px 0; width: 100%;">
+        <div class="container" style="text-align: center;">
+            <p style="color: #666; margin: 0; font-size: 14px;">© 2025 GazeGuard Dissertation Project</p>
+        </div>
+    </footer>
+
+    <script>
+        let sessionData = [];
+        let videoBlob = null;
+        let scoreChart = null;
+
+        window.onload = async function() {
+            const rawData = sessionStorage.getItem('gazeGuardSessionData');
+            if (rawData) {
+                sessionData = JSON.parse(rawData);
+                calculateStats();
+                renderChart();
+            }
+            await loadVideoFromDB();
+        };
+
+        function loadVideoFromDB() {
+            return new Promise((resolve) => {
+                const request = indexedDB.open("GazeGuardDB", 1);
+                request.onsuccess = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains("sessions")) { resolve(); return; }
+                    
+                    const tx = db.transaction("sessions", "readonly");
+                    const store = tx.objectStore("sessions");
+                    const getReq = store.get("latest_video");
+                    
+                    getReq.onsuccess = () => {
+                        if (getReq.result) {
+                            videoBlob = getReq.result;
+                            const videoUrl = URL.createObjectURL(videoBlob);
+                            document.getElementById('session-video').src = videoUrl;
+                            document.getElementById('btn-dl-video').disabled = false;
+                        }
+                        resolve();
+                    };
+                };
+                request.onerror = () => resolve();
+            });
+        }
+
+        function calculateStats() {
+            if(sessionData.length === 0) return;
+            
+            const totalScore = sessionData.reduce((sum, item) => sum + item.score, 0);
+            const avgScore = Math.round(totalScore / sessionData.length);
+            document.getElementById('stat-avg-score').innerText = `${avgScore}%`;
+
+            const totalSeconds = sessionData[sessionData.length - 1].time;
+            const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const secs = String(totalSeconds % 60).padStart(2, '0');
+            document.getElementById('stat-duration').innerText = `${mins}:${secs}`;
+
+            let distractionEvents = 0;
+            let wasBeeping = false;
+            sessionData.forEach(item => {
+                if (item.beep_active && !wasBeeping) {
+                    distractionEvents++;
+                }
+                wasBeeping = item.beep_active;
+            });
+            document.getElementById('stat-distractions').innerText = distractionEvents;
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            
+            const labels = sessionData.map(d => {
+                const m = String(Math.floor(d.time / 60)).padStart(2, '0');
+                const s = String(d.time % 60).padStart(2, '0');
+                return `${m}:${s}`;
+            });
+            const scores = sessionData.map(d => d.score);
+            const pointColors = sessionData.map(d => d.phone_detected ? '#ff4d4d' : '#FD871F');
+            const pointRadii = sessionData.map(d => d.phone_detected ? 5 : 2);
+            const pointHoverRadii = sessionData.map(d => d.phone_detected ? 8 : 6);
+
+            scoreChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Concentration Score (%)',
+                        data: scores,
+                        borderColor: '#FD871F',
+                        backgroundColor: 'rgba(253, 135, 31, 0.1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: pointColors, 
+                        pointBorderColor: pointColors,
+                        pointRadius: pointRadii,         
+                        pointHoverRadius: pointHoverRadii,
+                        fill: true,
+                        tension: 0.3 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: '#444' } },
+                        x: { grid: { color: '#333' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: 'white' } },
+                        tooltip: {
+                            callbacks: {
+                                
+                                afterLabel: function(context) {
+                                    const dataItem = sessionData[context.dataIndex];
+                                    let label = `Status: ${dataItem.status}`;
+                                    if (dataItem.phone_detected) {
+                                        label += ` | ⚠️ Phone Detected`;
+                                    }
+                                    if (dataItem.mar_action && dataItem.mar_action !== "None") {
+                                        label += ` | 🗣️ ${dataItem.mar_action}`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (event, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const dataIndex = activeElements[0].index;
+                            const timeInSeconds = sessionData[dataIndex].time;
+                            const video = document.getElementById('session-video');
+                            video.currentTime = timeInSeconds;
+                            video.play(); 
+                        }
+                    }
+                }
+            });
+        }
+
+        function downloadVideo() {
+            if (!videoBlob) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(videoBlob);
+            a.download = `GazeGuard_Video_${new Date().getTime()}.webm`;
+            a.click();
+        }
+
+        function downloadData() {
+            if (sessionData.length === 0) return;
+            const dataStr = JSON.stringify(sessionData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `GazeGuard_Data_${new Date().getTime()}.json`;
+            a.click();
+        }
+    </script>
+</body>
+</html>

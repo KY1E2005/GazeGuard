@@ -646,3 +646,73 @@ Session.html
     cursor: not-allowed;
     opacity: 0.7;
 }
+
+/* --- DASHBOARD STYLES --- */
+.dashboard-container {
+    padding: 40px 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+.stats-row {
+    display: flex; 
+    gap: 20px; 
+    margin-bottom: 20px;
+}
+.stat-card {
+    background: #252525; 
+    padding: 20px; 
+    border-radius: 8px; 
+    flex: 1;
+    border: 1px solid #333; 
+    text-align: center;
+}
+.stat-value { 
+    font-size: 2rem; 
+    font-weight: bold; 
+    color: #FD871F; }
+
+.review-workspace {
+    display: flex; 
+    gap: 20px; 
+    height: 60vh; 
+    margin-bottom: 20px;
+}
+.video-panel {
+    flex: 1; 
+    background: #111; 
+    border-radius: 8px; 
+    border: 1px solid #333;
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden;
+}
+.chart-panel {
+    flex: 1.5; 
+    background: #252525; 
+    border-radius: 8px; 
+    border: 1px solid #333;
+    padding: 20px; 
+    position: relative;
+}
+.video-panel video { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: contain; 
+    background: #000; }
+
+.action-row {
+    display: flex; 
+    gap: 15px; 
+    margin-top: 20px; 
+    justify-content: flex-end;
+}
+
+.btn-data {
+    border-color: #5bc0de !important;
+    color: #5bc0de !important;
+}
+
+.btn-data:hover {
+    background: #5bc0de !important;
+    color: white !important;
+}
