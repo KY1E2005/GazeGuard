@@ -38,7 +38,8 @@ current_system_status = {
     'score': 0,           
     'status': "Unknown",    
     'beep_active': False,   
-    'phone_detected': False
+    'phone_detected': False,
+    'multiple_faces': False
 }
 
 # --- AUDIO SETUP ---
@@ -124,7 +125,7 @@ def generate_frames():
 
             current_system_status.update({
                 'brightness': int(global_brightness),
-                'lighting_ok': bool(global_brightness > 80),
+                'lighting_ok': bool(global_brightness > 55),
                 'face_detected': bool(results.multi_face_landmarks),
                 'centered': bool(is_centered)
             })
@@ -132,9 +133,10 @@ def generate_frames():
             should_play_beep = False
             system_active = False
             current_action = "None"
+            multi_face_flag = False
             
             if not results.multi_face_landmarks:
-                if global_brightness < 65: 
+                if global_brightness < 55: 
                     text1 = "GazeGuard disabled due to poor lighting"
                     text2 = "Please find suitable lighting conditions"
                     t1_size = cv2.getTextSize(text1, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
@@ -197,6 +199,7 @@ def generate_frames():
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, (0, 165, 255), 2)
 
                     if num_faces > 1:
+                        multi_face_flag = True
                         should_play_beep = True
                         text = "MULTIPLE FACES DETECTED"
                         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, 2)[0]
@@ -318,6 +321,7 @@ def generate_frames():
             current_system_status['beep_active'] = is_beep_playing
             current_system_status['phone_detected'] = phone_detected
             current_system_status['mar_action'] = current_action
+            current_system_status['multiple_faces'] = multi_face_flag
             
             ret, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()

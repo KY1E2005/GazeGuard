@@ -716,3 +716,250 @@ Session.html
     background: #5bc0de !important;
     color: white !important;
 }
+
+/* --- DASHBOARD SESSION GRID --- */
+.session-grid {
+   display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 25px;
+    margin-top: 20px;
+}
+.session-card {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 12px; 
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.session-card:hover {
+    transform: translateY(-5px);
+    border-color: #FD871F;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+.session-thumbnail {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-bottom: 1px solid #333;
+}
+
+.session-card-content {
+    padding: 20px;
+}
+
+.session-card-header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.session-card-stat {
+    display: flex; justify-content: space-between; margin-bottom: 8px; color: #ccc; font-size: 0.95rem;
+}
+.session-card-score {
+    font-size: 1.6rem; color: #00d26a; font-weight: bold; text-align: right; margin-top: 15px;
+}
+.session-card-score.bad { color: #ff4d4d; }
+.session-card-score.avg { color: #FD871F; }
+
+@media (max-width: 1000px) {
+    .session-grid {
+        grid-template-columns: repeat(2, 1fr); 
+    }
+}
+@media (max-width: 600px) {
+    .session-grid {
+        grid-template-columns: 1fr; 
+    }
+}
+
+.file-list-container {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 15px;
+    max-height: 150px;
+    overflow-y: auto;  
+}
+.file-list-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px; border-bottom: 1px solid #222; color: #ccc;
+}
+.file-list-item:last-child { border-bottom: none; }
+.btn-file-dl {
+    padding: 4px 10px; font-size: 12px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;
+}
+.btn-file-dl:hover { background: #FD871F; }
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; 
+}
+
+.dashboard-container {
+    flex: 1; 
+}
+
+.session-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 15px;
+}
+
+/* --- DELETE BUTTON--- */
+.btn-delete-card {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid #ff4d4d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+    overflow: hidden;
+    box-shadow: 0 0 0 0 transparent;
+    transition: all 0.2s ease-in;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.btn-delete-card svg {
+    width: 18px;
+    height: 18px;
+    fill: #ff4d4d;
+    transition: fill 0.2s ease-in;
+}
+
+.btn-delete-card:hover {
+    background: #ff4d4d;
+    box-shadow: 0 0 15px 5px rgba(255, 77, 77, 0.4);
+    transition: all 0.2s ease-out;
+}
+
+.btn-delete-card:hover svg {
+    fill: white;
+}
+
+.btn-delete-card:hover::before {
+    animation: sh02 0.5s 0s linear;
+}
+
+.btn-delete-card::before {
+    content: '';
+    display: block;
+    width: 0px;
+    height: 86%;
+    position: absolute;
+    top: 7%;
+    left: 0%;
+    opacity: 0;
+    background: #fff;
+    box-shadow: 0 0 50px 30px #fff;
+    transform: skewX(-20deg);
+}
+
+@keyframes sh02 {
+    from { opacity: 0; left: 0%; }
+    50% { opacity: 1; }
+    to { opacity: 0; left: 100%; }
+}
+
+.btn-delete-card:active {
+    box-shadow: 0 0 0 0 transparent;
+    transition: box-shadow 0.2s ease-in;
+}
+
+/* --- CUSTOM DELETE MODAL OVERLAY --- */
+.delete-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.card {
+    width: 300px;
+    height: 220px;
+    background-color: #252525;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 30px;
+    gap: 13px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 2px 2px 20px rgba(0, 0, 0, 0.062);
+}
+
+.deleteHeading {
+    font-size: 1.3em;
+    font-weight: 800;
+    color: white;
+    margin: 0;
+}
+
+.deleteDescription {
+    text-align: center;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #ccc;
+    margin: 0;
+}
+
+.buttonContainer {
+    display: flex;
+    gap: 20px;
+    flex-direction: row;
+    margin-top: 10px;
+}
+
+.deleteConfirmBtn {
+    width: 80px;
+    height: 30px;
+    background-color: #ff4d4d;
+    transition-duration: .2s;
+    border: none;
+    color: rgb(241, 241, 241);
+    cursor: pointer;
+    font-weight: 600;
+    border-radius: 20px;
+    box-shadow: 0 4px 6px -1px #ff7979, 0 2px 4px -1px #ff7979;
+    transition: all .6s ease;
+}
+
+.deleteConfirmBtn:hover {
+    background-color: #ff1a1a;
+    box-shadow: 0 10px 15px -3px #ff7979, 0 4px 6px -2px #ff7979;
+}
+
+.deleteCancelBtn {
+    width: 80px;
+    height: 30px;
+    background-color: #333;
+    transition-duration: .2s;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    border-radius: 20px;
+    box-shadow: 0 4px 6px -1px #bebdbd, 0 2px 4px -1px #bebdbd;
+    transition: all .6s ease;
+}
+
+.deleteCancelBtn:hover {
+    background-color: #444;
+    box-shadow: 0 10px 15px -3px #bebdbd, 0 4px 6px -2px #bebdbd;
+}

@@ -209,11 +209,10 @@
                 fetch('/get_status')
                 .then(res => res.json())
                 .then(data => {
-                    updateCheckItem('check-light', data.lighting_ok, data.brightness < 60 ? "Too Dark" : "Good");
+                    updateCheckItem('check-light', data.lighting_ok, data.lighting_ok ? "Good" : "Too Dark");
                     updateCheckItem('check-face', data.face_detected, data.face_detected ? "Detected" : "No Face");
                     updateCheckItem('check-center', data.centered, data.centered ? "Centered" : "Adjust Position");
 
-                    // Only enable button if ALL checks pass
                     if (data.lighting_ok && data.face_detected && data.centered) {
                         btn.disabled = false;
                         btn.classList.add('btn-start'); 
@@ -248,6 +247,7 @@
         let mediaRecorder;
         let recordedChunks = [];
         let canvasDrawInterval;
+        let sessionUploadedFiles = [];
 
         function confirmStart() {
             clearInterval(checkInterval);
@@ -285,7 +285,8 @@
                         status: data.status || "Unknown",
                         beep_active: data.beep_active || false,
                         phone_detected: data.phone_detected || false,
-                        mar_action: data.mar_action || "None"
+                        mar_action: data.mar_action || "None",
+                        multiple_faces: data.multiple_faces || false
                     });
                 });
             }, 1000); 
@@ -302,7 +303,6 @@
                 }
             }, 1000 / 15);
 
-            // Capture the canvas stream and start recording
             const stream = canvas.captureStream(15);
             mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
 
@@ -314,27 +314,61 @@
 
             mediaRecorder.onstop = async () => {
                 const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                await saveVideoToDB(blob); 
+                const sessionId = 'session_' + new Date().getTime();
+                
+                // Capture Thumbnail (grab current state of the canvas)
+                const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                // Fetch the files used from Session Storage
+                let usedFiles = [];
+                const urlsJson = sessionStorage.getItem('gazeGuardPdfUrls');
+                if (urlsJson) {
+                    const urls = JSON.parse(urlsJson);
+                    usedFiles = urls.map(url => {
+                        const parts = url.split('/');
+                        const fileName = decodeURIComponent(parts[parts.length - 1]);
+                        return { name: fileName, url: url };
+                    });
+                }
+
+                const totalScore = sessionDataLog.reduce((sum, item) => sum + item.score, 0);
+                const avgScore = sessionDataLog.length > 0 ? Math.round(totalScore / sessionDataLog.length) : 0;
+
+                // Create final object with Thumbnail and Files array
+                const sessionObject = {
+                    id: sessionId,
+                    timestamp: new Date().getTime(),
+                    duration: sessionSeconds,
+                    avgScore: avgScore,
+                    videoBlob: blob,
+                    thumbnail: thumbnailDataUrl, 
+                    files: usedFiles, 
+                    trackingData: sessionDataLog
+                };
+
+                await saveSessionToDB(sessionObject);
                 window.location.href = "/dashboard"; 
             };
 
             mediaRecorder.start();
         }
 
-        function saveVideoToDB(blob) {
+        function saveSessionToDB(sessionObject) {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open("GazeGuardDB", 1);
+                const request = indexedDB.open("GazeGuardDB", 2);
+                
                 request.onupgradeneeded = (e) => {
                     const db = e.target.result;
-                    if (!db.objectStoreNames.contains("sessions")) {
-                        db.createObjectStore("sessions");
+                    if (!db.objectStoreNames.contains("user_sessions")) {
+                        db.createObjectStore("user_sessions", { keyPath: "id" });
                     }
                 };
+                
                 request.onsuccess = (e) => {
                     const db = e.target.result;
-                    const tx = db.transaction("sessions", "readwrite");
-                    const store = tx.objectStore("sessions");
-                    store.put(blob, "latest_video");
+                    const tx = db.transaction("user_sessions", "readwrite");
+                    const store = tx.objectStore("user_sessions");
+                    store.put(sessionObject);
                     tx.oncomplete = () => resolve();
                     tx.onerror = () => reject();
                 };
@@ -346,8 +380,6 @@
             
             if (isRecordingEnabled && sessionDataLog.length > 0) {
                 clearInterval(dataLoggerInterval);
-                sessionStorage.setItem('gazeGuardSessionData', JSON.stringify(sessionDataLog));
-                sessionStorage.setItem('gazeGuardSessionDuration', sessionSeconds);
                 clearInterval(canvasDrawInterval);
                 mediaRecorder.stop();
                 fetch('/shutdown_camera');
