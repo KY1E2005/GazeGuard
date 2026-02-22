@@ -936,13 +936,11 @@ body {
     cursor: pointer;
     font-weight: 600;
     border-radius: 20px;
-    box-shadow: 0 4px 6px -1px #ff7979, 0 2px 4px -1px #ff7979;
     transition: all .6s ease;
 }
 
 .deleteConfirmBtn:hover {
     background-color: #ff1a1a;
-    box-shadow: 0 10px 15px -3px #ff7979, 0 4px 6px -2px #ff7979;
 }
 
 .deleteCancelBtn {
@@ -955,11 +953,75 @@ body {
     cursor: pointer;
     font-weight: 600;
     border-radius: 20px;
-    box-shadow: 0 4px 6px -1px #bebdbd, 0 2px 4px -1px #bebdbd;
     transition: all .6s ease;
 }
 
 .deleteCancelBtn:hover {
     background-color: #444;
-    box-shadow: 0 10px 15px -3px #bebdbd, 0 4px 6px -2px #bebdbd;
+}
+
+.btn-new-session {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 15px;
+    gap: 10px;
+    background-color: #252525;
+    outline: 2px solid #FD871F;
+    outline-offset: -2px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    transition: 400ms;
+}
+
+.btn-new-session .text {
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    transition: 400ms;
+    margin: 0;
+}
+
+.btn-new-session svg {
+    stroke: white;
+    transition: 400ms;
+}
+
+.btn-new-session:hover {
+    background-color: #FD871F;
+}
+
+.btn-new-session:hover .text {
+    color: white !important;
+}
+
+.btn-new-session:hover svg {
+    stroke: #111;
+}
+
+/* --- UPLOAD MODAL (Reuses dark theme elements) --- */
+.upload-modal-card {
+    width: 400px;
+    background-color: #252525;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#dash-start-btn {
+    background-color: #00d26a;
+    border-color: #00d26a;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+#dash-start-btn:hover {
+    background-color: #00b35a;
+    border-color: #00b35a;
+    transform: translateY(-2px);
 }

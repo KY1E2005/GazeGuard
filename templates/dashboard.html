@@ -12,6 +12,8 @@
 
 <body style="background-color: var(--bg-dark); color: white; padding-top: 70px; margin: 0;">
 
+    <div id="toast-container"></div>
+
     <header class="header" style="background: #111 !important; border-bottom: 1px solid #333; left: 0;">
         <div class="container" style="display: flex; justify-content: space-between; align-items: center; padding: 5px 15px;">
             <div class="logo">
@@ -24,8 +26,19 @@
     </header>
 
     <div id="grid-view" class="dashboard-container">
-        <h2 style="color: white; margin-bottom: 5px;">Your Sessions</h2>
-        <p style="color: #888;">All session data is stored locally on your device.</p>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+            <div>
+                <h2 style="color: white; margin: 0; margin-bottom: 5px;">Your Sessions</h2>
+                <p style="color: #888; margin: 0;">All session data is stored locally on your device.</p>
+            </div>
+            
+            <button class="btn-new-session" onclick="openUploadModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 5V19M5 12H19" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="text">New Session</span>
+            </button>
+        </div>
         
         <div class="session-grid" id="session-grid-container">
             </div>
@@ -81,6 +94,22 @@
         </p>
     </div>
 
+    <div id="upload-modal-overlay" class="delete-modal-overlay" style="display: none;">
+        <div class="upload-modal-card">
+            <h3 style="color: white; margin: 0;">Prepare New Session</h3>
+            <p style="color: #ccc; font-size: 14px; margin: 0;">Upload study materials (.pdf, .png, .mp4) up to 3 files.</p>
+            
+            <input type="file" id="dashPdfInput" accept="application/pdf, image/png, image/jpeg, video/mp4, video/webm" multiple style="color: white; background: #111; padding: 10px; border-radius: 5px; border: 1px solid #444; margin-top: 10px;">
+            
+            <div id="dash-upload-status" style="color: #FD871F; font-size: 14px; min-height: 20px; font-weight: 600;"></div>
+
+            <div class="buttonContainer" style="justify-content: flex-end; margin-top: 10px;">
+                <button class="deleteCancelBtn" onclick="closeUploadModal()">Cancel</button>
+                <button class="btn-brand" id="dash-start-btn" onclick="startNewSession()" style="padding: 6px 15px; margin: 0; font-size: 14px;">Start Tracking</button>
+            </div>
+        </div>
+    </div>
+
     <div id="delete-modal-overlay" class="delete-modal-overlay" style="display: none;">
         <div class="card">
             <p class="deleteHeading">Delete Session?</p>
@@ -99,6 +128,32 @@
     </footer>
 
     <script>
+        // --- CUSTOM TOAST FUNCTION ---
+        function showToast(message, type) {
+            const container = document.getElementById('toast-container');
+            const colorClass = type === 'info' ? 'orange' : '';
+            const toastHTML = `
+                <div class="error ${colorClass}">
+                    <div class="error__icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" height="24" fill="none"><path fill="#fff" d="m13 13h-2v-6h2zm0 4h-2v-2h2zm-1-15c-1.3132 0-2.61358.25866-3.82683.7612-1.21326.50255-2.31565 1.23915-3.24424 2.16773-1.87536 1.87537-2.92893 4.41891-2.92893 7.07107 0 2.6522 1.05357 5.1957 2.92893 7.0711.92859.9286 2.03098 1.6651 3.24424 2.1677 1.21325.5025 2.51363.7612 3.82683.7612 2.6522 0 5.1957-1.0536 7.0711-2.9289 1.8753-1.8754 2.9289-4.4189 2.9289-7.0711 0-1.3132-.2587-2.61358-.7612-3.82683-.5026-1.21326-1.2391-2.31565-2.1677-3.24424-.9286-.92858-2.031-1.66518-3.2443-2.16773-1.2132-.50254-2.5136-.7612-3.8268-.7612z"></path></svg>
+                    </div>
+                    <div class="error__title">${message}</div>
+                    <div class="error__close" onclick="this.parentElement.remove()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 20 20" height="20"><path fill="#fff" d="m15.8333 5.34166-1.175-1.175-4.6583 4.65834-4.65833-4.65834-1.175 1.175 4.65833 4.65834-4.65833 4.6583 1.175 1.175 4.65833-4.6583 4.6583 4.6583 1.175-1.175-4.6583-4.6583z"></path></svg>
+                    </div>
+                </div>
+            `;
+            const toastElement = document.createElement('div');
+            toastElement.innerHTML = toastHTML;
+            container.appendChild(toastElement.firstElementChild);
+            setTimeout(() => {
+                if(container.firstChild) {
+                    container.firstChild.style.animation = 'fadeOut 0.5s forwards';
+                    setTimeout(() => container.firstChild && container.firstChild.remove(), 500);
+                }
+            }, 3000);
+        }
+        
         let allSessions = [];
         let currentSessionData = [];
         let currentVideoBlob = null;
@@ -304,14 +359,21 @@
                 return `${m}:${s}`;
             });
             const scores = currentSessionData.map(d => d.score);
-            //Cyan for multiple faces, Red for phones, Orange for normal
+            // Grey for errors, Cyan for multiple faces, Red for phones, Orange for normal
             const pointColors = currentSessionData.map(d => {
+                if (d.status.includes("Camera") || d.status.includes("Dark")) return '#a6a7aa'; 
                 if (d.phone_detected) return '#ff4d4d';
                 if (d.multiple_faces) return '#5bc0de'; 
                 return '#FD871F';
             });
-            const pointRadii = currentSessionData.map(d => (d.phone_detected || d.multiple_faces) ? 5 : 2);
-            const pointHoverRadii = currentSessionData.map(d => (d.phone_detected || d.multiple_faces) ? 8 : 6);
+            const pointRadii = currentSessionData.map(d => {
+                if (d.status.includes("Camera") || d.status.includes("Dark")) return 5;
+                return (d.phone_detected || d.multiple_faces) ? 5 : 2;
+            });
+            const pointHoverRadii = currentSessionData.map(d => {
+                if (d.status.includes("Camera") || d.status.includes("Dark")) return 8;
+                return (d.phone_detected || d.multiple_faces) ? 8 : 6;
+            });
 
             scoreChart = new Chart(ctx, {
                 type: 'line',
@@ -348,6 +410,9 @@
                                     if (dataItem.phone_detected) label += ` | ⚠️ Phone Detected`;
                                     if (dataItem.multiple_faces) label += ` | 👥 Multiple Faces`;
                                     if (dataItem.mar_action && dataItem.mar_action !== "None") label += ` | 🗣️ ${dataItem.mar_action}`;
+                                    if (dataItem.status.includes("Camera") || dataItem.status.includes("Dark")) {
+                                        label += ` | 🚫 System Error`; 
+                                    }
                                     return label;
                                 }
                             }
@@ -383,6 +448,69 @@
             a.href = URL.createObjectURL(blob);
             a.download = `GazeGuard_Data_${new Date().getTime()}.json`;
             a.click();
+        }
+
+        // --- UPLOAD MODAL & SESSION SHORTCUT LOGIC ---
+        let dashUploadedPdfs = [];
+
+        function openUploadModal() {
+            document.getElementById('upload-modal-overlay').style.display = 'flex';
+            document.getElementById('dashPdfInput').value = "";
+            document.getElementById('dash-upload-status').innerText = "";
+            dashUploadedPdfs = [];
+            sessionStorage.removeItem('gazeGuardPdfUrls'); 
+        }
+
+        function closeUploadModal() {
+            document.getElementById('upload-modal-overlay').style.display = 'none';
+        }
+
+        document.getElementById('dashPdfInput').addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length === 0) return;
+            if (files.length > 3) {
+                document.getElementById('dash-upload-status').innerText = "Maximum of 3 files allowed.";
+                this.value = "";
+                return;
+            }
+
+            document.getElementById('dash-upload-status').innerText = "Uploading files...";
+            document.getElementById('dash-upload-status').style.color = "#FD871F";
+            
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('file', files[i]);
+            }
+
+            fetch('/upload_pdf', { method: 'POST', body: formData })
+            .then(response => {
+                if (!response.ok) throw new Error("File too large or upload failed.");
+                return response.json();
+            })
+            .then(data => {
+                if (data.urls) {
+                    dashUploadedPdfs = data.urls;
+                    sessionStorage.setItem('gazeGuardPdfUrls', JSON.stringify(dashUploadedPdfs));
+                    document.getElementById('dash-upload-status').innerText = `✔ Successfully loaded ${files.length} file(s).`;
+                    document.getElementById('dash-upload-status').style.color = "#00d26a";
+                } else if (data.error) {
+                    document.getElementById('dash-upload-status').innerText = "✖ " + data.error;
+                    document.getElementById('dash-upload-status').style.color = "#ff4d4d";
+                }
+            })
+            .catch(error => {
+                document.getElementById('dash-upload-status').innerText = "✖ " + error.message;
+                document.getElementById('dash-upload-status').style.color = "#ff4d4d";
+            });
+        });
+
+        // Trigger Redirect
+        function startNewSession() {
+            if (dashUploadedPdfs.length === 0) {
+                showToast("Please upload a File before starting the session.", "error");
+                return;
+            }
+            window.location.href = "/session";
         }
     </script>
 </body>

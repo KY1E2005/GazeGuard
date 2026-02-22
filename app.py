@@ -93,7 +93,10 @@ def generate_frames():
         while True:
             # SAFETY CHECK: If camera failed to open
             if cam is None or not cam.isOpened():
-                current_system_status.update({'lighting_ok': False, 'face_detected': False, 'centered': False, 'brightness': 0})
+                current_system_status.update({
+                    'lighting_ok': False, 'face_detected': False, 'centered': False, 'brightness': 0,
+                    'score': 0, 'status': "Camera Disconnected"
+                })
                 yield create_error_frame("Camera Disconnected!")
                 time.sleep(1)
                 cam = get_camera()
@@ -103,7 +106,10 @@ def generate_frames():
             
             # SAFETY CHECK: If camera is open but returning no frames (Privacy Shutter)
             if not success:
-                current_system_status.update({'lighting_ok': False, 'face_detected': False, 'centered': False, 'brightness': 0})
+                current_system_status.update({
+                    'lighting_ok': False, 'face_detected': False, 'centered': False, 'brightness': 0,
+                    'score': 0, 'status': "Camera Blocked"
+                })
                 yield create_error_frame("Camera Blocked/Unavailable")
                 cam.release()
                 time.sleep(1)
@@ -125,7 +131,7 @@ def generate_frames():
 
             current_system_status.update({
                 'brightness': int(global_brightness),
-                'lighting_ok': bool(global_brightness > 55),
+                'lighting_ok': bool(global_brightness > 50),
                 'face_detected': bool(results.multi_face_landmarks),
                 'centered': bool(is_centered)
             })
@@ -134,9 +140,12 @@ def generate_frames():
             system_active = False
             current_action = "None"
             multi_face_flag = False
+            score = 0 
+            current_status_text = "Unknown" 
             
             if not results.multi_face_landmarks:
-                if global_brightness < 55: 
+                if global_brightness < 50:
+                    current_status_text = "Too Dark" # Assign dark state 
                     text1 = "GazeGuard disabled due to poor lighting"
                     text2 = "Please find suitable lighting conditions"
                     t1_size = cv2.getTextSize(text1, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, 2)[0]
@@ -146,6 +155,7 @@ def generate_frames():
                     cv2.putText(frame, text2, ((width - t2_size[0]) // 2, height // 2 + 20), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6 * font_scale, (0, 165, 255), 2)
                 else:
+                    current_status_text = "No Face" # Assign no face state
                     text = "No Face detected"
                     text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.0 * font_scale, 2)[0]
                     cv2.putText(frame, text, ((width - text_size[0]) // 2, height // 2), 
@@ -181,7 +191,8 @@ def generate_frames():
                 except:
                     face_brightness = global_brightness
 
-                if face_brightness < 40: 
+                if face_brightness < 40:
+                    current_status_text = "Face Too Dark" 
                     text = "Face too dark for accuracy"
                     text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8 * font_scale, 2)[0]
                     cv2.putText(frame, text, ((width - text_size[0]) // 2, height // 2), 
@@ -216,6 +227,7 @@ def generate_frames():
                     mar = features.get_MAR(landmarks)
                     
                     score, duration, status = scorer.get_score(ear, gaze, pitch, yaw, phone_detected)
+                    current_status_text = status # Inherit string from scorer
                     
                     # --- BALANCED LOOK AWAY LOGIC ---
                     is_looking_down_severe = pitch > 15
@@ -317,7 +329,7 @@ def generate_frames():
 
             # --- APPEND TRACKING DATA TO GLOBAL STATUS ---
             current_system_status['score'] = int(score) if system_active else 0
-            current_system_status['status'] = status if system_active else "No Face"
+            current_system_status['status'] = current_status_text
             current_system_status['beep_active'] = is_beep_playing
             current_system_status['phone_detected'] = phone_detected
             current_system_status['mar_action'] = current_action
