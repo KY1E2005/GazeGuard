@@ -1025,3 +1025,63 @@ body {
     border-color: #00b35a;
     transform: translateY(-2px);
 }
+
+.btn-share-custom {
+background-color: transparent; 
+border: 1px solid #FD871F;     
+padding: 8px 0; 
+position: relative;
+width: 160px; 
+height: auto;
+min-height: 38px; 
+transition: all 0.3s ease;
+font-size: 14px;
+border-radius: 4px;
+cursor: pointer;
+overflow: hidden;
+margin: 0;
+vertical-align: middle;
+}
+
+.btn-share-custom p {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%); 
+margin: 0 !important;
+padding: 0;
+transition: all 0.3s ease;
+color: #FD871F !important; 
+font-weight: 600;
+font-size: 14px;
+white-space: nowrap;
+}
+
+.btn-share-custom svg {
+position: absolute;
+top: 50%;
+right: 10px;
+transform: translateY(-50%);
+margin: 0;
+padding: 0;
+opacity: 0;
+transition: all 0.3s ease;
+height: 16px;
+width: 16px;
+fill: #fff;
+}
+
+.btn-share-custom:hover {
+background-color: #FD871F; 
+box-shadow: 0 0 10px rgba(253, 135, 31, 0.4); 
+}
+
+.btn-share-custom:hover p {
+left: 42% !important; 
+color: #fff !important;
+}
+
+.btn-share-custom:hover svg {
+opacity: 1; 
+right: 25px; 
+}

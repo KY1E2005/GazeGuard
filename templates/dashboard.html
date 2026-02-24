@@ -8,6 +8,9 @@
     <link href="http://fonts.googleapis.com/css?family=Hind:400,600,700" rel="stylesheet" type="text/css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" type="text/css"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 </head>
 
 <body style="background-color: var(--bg-dark); color: white; padding-top: 70px; margin: 0;">
@@ -47,7 +50,15 @@
     <div id="detail-view" class="dashboard-container" style="display: none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h2 style="color: white; margin: 0;">Session Analytics</h2>
-            <button class="btn-brand" onclick="closeSessionDetail()" style="padding: 8px 20px; margin: 0; font-size: 14px;">← Back to Sessions</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-share-custom" onclick="openShareModal()">
+                    <p>Share Session</p>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.66 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                    </svg>
+                </button>
+                <button class="btn-brand" onclick="closeSessionDetail()" style="padding: 8px 20px; margin: 0; font-size: 14px;">← Back to Sessions</button>
+            </div>
         </div>
         <h4 id="detail-date-header" style="color: #888; margin-top: 0; margin-bottom: 25px;"></h4>
         
@@ -117,6 +128,27 @@
             <div class="buttonContainer">
                 <button class="deleteConfirmBtn" onclick="confirmDelete()">Delete</button>
                 <button class="deleteCancelBtn" onclick="closeDeleteModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="share-modal-overlay" class="delete-modal-overlay" style="display: none;">
+        <div class="upload-modal-card" style="text-align: center;">
+            <h3 style="color: white; margin-top: 0;">Share with Teacher</h3>
+            <p style="color: #ccc; font-size: 14px; margin-bottom: 20px;">
+                Generate an official "Proof of Study" report for this session to submit to your lecturer.
+            </p>
+            
+            <div style="background: #111; padding: 15px; border-radius: 5px; border: 1px dashed #444; margin-bottom: 20px;">
+                <p style="margin:0; color:#888; font-size: 12px; text-transform: uppercase;">Generated Proof ID</p>
+                <p id="share-proof-id" style="margin:5px 0 0 0; color:#FD871F; font-family: monospace; font-size: 16px; font-weight: bold;">LOADING...</p>
+            </div>
+
+            <div class="buttonContainer" style="justify-content: center; margin-top: 0;">
+                <button class="deleteCancelBtn" onclick="closeShareModal()">Close</button>
+                <button class="btn-brand" onclick="generatePDFReport()" style="padding: 6px 20px; margin: 0; font-size: 14px; background: #00d26a; border-color: #00d26a; color: white;">
+                    Download PDF Report
+                </button>
             </div>
         </div>
     </div>
@@ -519,6 +551,122 @@
                 return;
             }
             window.location.href = "/session";
+        }
+
+        function openShareModal() {
+            const proofId = "GZ-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+            document.getElementById('share-proof-id').innerText = proofId;
+            document.getElementById('share-modal-overlay').style.display = 'flex';
+        }
+
+        function closeShareModal() {
+            document.getElementById('share-modal-overlay').style.display = 'none';
+        }
+
+        async function generatePDFReport() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const avgScore = document.getElementById('stat-avg-score').innerText;
+            const duration = document.getElementById('stat-duration').innerText;
+            const distractions = document.getElementById('stat-distractions').innerText;
+            const dateStr = document.getElementById('detail-date-header').innerText;
+            const proofId = document.getElementById('share-proof-id').innerText;
+
+            //Generates "Truth" QR Code
+            const verificationString = `GAZEGUARD OFFICIAL RECORD\nID: ${proofId}\nDate: ${dateStr}\nAverage Concentration: ${avgScore}\nDuration: ${duration}\nDistractions: ${distractions}`;
+            
+            const qr = qrcode(0, 'L'); 
+            qr.addData(verificationString);
+            qr.make();
+            const qrImage = qr.createDataURL(4, 0); 
+
+            //Captures Chart
+            const chartPanel = document.querySelector('.chart-panel');
+            const originalBg = chartPanel.style.background;
+            chartPanel.style.background = '#252525'; 
+            
+            showToast("Generating Verifiable Report...", "info");
+
+            try {
+                const canvas = await html2canvas(chartPanel, { scale: 2 });
+                const imgData = canvas.toDataURL('image/png');
+                
+                
+                // Header
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(22);
+                doc.setTextColor(253, 135, 31); 
+                doc.text("GazeGuard Session Report", 105, 20, null, null, "center");
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100);
+                doc.setFont("helvetica", "normal");
+                doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 28, null, null, "center");
+
+                doc.setLineWidth(0.5);
+                doc.setDrawColor(200);
+                doc.line(20, 35, 190, 35);
+
+                // Session Stats Section
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(14);
+                doc.setTextColor(0);
+                doc.text("Session Summary:", 20, 50);
+                
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "normal");
+                doc.text(`• Date: ${dateStr}`, 30, 60);
+                
+                doc.text(`• Average Concentration: ${avgScore}`, 30, 70);
+                
+                doc.text(`• Duration: ${duration} (MM:SS)`, 30, 80);
+                
+                doc.text(`• Severe Distractions: ${distractions}`, 30, 90);
+
+                const imgProps = doc.getImageProperties(imgData);
+                const pdfWidth = 180;
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                // Add Image with dynamic height
+                doc.addImage(imgData, 'PNG', 15, 100, pdfWidth, pdfHeight);
+                const nextSectionY = 100 + pdfHeight + 10;
+
+                // --- THE VERIFICATION SECTION ---
+                doc.setDrawColor(253, 135, 31); 
+                doc.setLineWidth(1);
+                doc.rect(20, nextSectionY, 170, 60);
+
+                // Add QR Code
+                doc.addImage(qrImage, 'GIF', 25, nextSectionY + 5, 50, 50);
+
+                // Instructions
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(12);
+                doc.setTextColor(0);
+                doc.text("Scan to Verify Authenticity", 80, nextSectionY + 15);
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.setTextColor(80);
+                doc.text("This QR code contains the unalterable digital", 80, nextSectionY + 25);
+                doc.text("record of this session. If the data in this scan", 80, nextSectionY + 30);
+                doc.text("does not match the text above, this document", 80, nextSectionY + 35);
+                doc.text("has been tampered with.", 80, nextSectionY + 40);
+
+                // Footer
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`Proof ID: ${proofId} | System: Local-IndexedDB`, 105, 280, null, null, "center");
+
+                doc.save(`GazeGuard_Proof_${proofId}.pdf`);
+                showToast("Proof of Study Generated!", "info");
+                closeShareModal();
+
+            } catch (err) {
+                console.error(err);
+                showToast("Error generating PDF.", "error");
+            } finally {
+                chartPanel.style.background = originalBg;
+            }
         }
     </script>
 </body>
