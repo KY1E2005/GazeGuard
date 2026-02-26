@@ -8,6 +8,7 @@
     <link href="http://fonts.googleapis.com/css?family=Hind:400,600,700" rel="stylesheet" type="text/css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" type="text/css"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -438,10 +439,22 @@
                     maintainAspectRatio: false,
                     scales: {
                         y: { beginAtZero: true, max: 100, grid: { color: '#444' } },
-                        x: { grid: { color: '#333' } }
+                        x: { grid: { color: '#333' }, ticks: { maxTicksLimit: 12, maxRotation: 0 } }
                     },
                     plugins: {
                         legend: { labels: { color: 'white' } },
+                        // --- ENABLE ZOOM & PAN ---
+                        zoom: {
+                            zoom: {
+                                wheel: { enabled: true, speed: 0.1 },
+                                pinch: { enabled: true },
+                                mode: 'x',
+                            },
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                            }
+                        },
                         tooltip: {
                             callbacks: {
                                 afterLabel: function(context) {
@@ -583,11 +596,16 @@
             //Captures Chart
             const chartPanel = document.querySelector('.chart-panel');
             const originalBg = chartPanel.style.background;
-            chartPanel.style.background = '#252525'; 
+            const originalPadding = chartPanel.style.padding;
+            chartPanel.style.background = '#252525';
+            
+            chartPanel.style.padding = '0px'; 
+            if(scoreChart) scoreChart.resize();
             
             showToast("Generating Verifiable Report...", "info");
 
             try {
+                await new Promise(r => setTimeout(r, 150));
                 const canvas = await html2canvas(chartPanel, { scale: 2 });
                 const imgData = canvas.toDataURL('image/png');
                 
@@ -666,6 +684,8 @@
                 showToast("Error generating PDF.", "error");
             } finally {
                 chartPanel.style.background = originalBg;
+                chartPanel.style.padding = originalPadding;
+                if(scoreChart) scoreChart.resize();
             }
         }
     </script>
