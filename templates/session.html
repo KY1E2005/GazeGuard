@@ -135,6 +135,26 @@
             } else {
                 leftPanel.innerHTML = "<h3 style='text-align:center; margin-top:50%; color:white;'>No Document Uploaded</h3>";
             }
+
+            //INJECT EXAM CANVAS
+            const isExamMode = sessionStorage.getItem('isExamMode') === 'true';
+        
+        if (isExamMode) {
+            const leftPanel = document.querySelector('.left-panel');
+            leftPanel.style.flexDirection = 'column';
+            
+            leftPanel.innerHTML += `
+                <div style="height: 50%; width: 100%; border-top: 2px solid #FD871F; background: #fff; display: flex; flex-direction: column; z-index: 10;">
+                    <div style="background: #111; color: #FD871F; padding: 5px 15px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between;">
+                        <span>Exam Answer Sheet</span>
+                        <span style="color: #ff4d4d;">(Locked upon End Session)</span>
+                    </div>
+                    <textarea id="exam-answers-textarea" style="flex: 1; width: 100%; resize: none; padding: 15px; font-family: 'Hind', sans-serif; font-size: 15px; border: none; outline: none; box-sizing: border-box;" placeholder="Type your answers here..."></textarea>
+                </div>
+            `;
+            const iframe = leftPanel.querySelector('iframe');
+            if(iframe) iframe.style.height = '50%';
+        }
             startCalibration();
         };
 
@@ -361,7 +381,17 @@
                 const totalScore = sessionDataLog.reduce((sum, item) => sum + item.score, 0);
                 const avgScore = sessionDataLog.length > 0 ? Math.round(totalScore / sessionDataLog.length) : 0;
 
-                // Create final object with Thumbnail and Files array
+                //GRAB EXAM TEXT IF IN EXAM MODE
+                let examAnswerText = "";
+                const isExamModeActive = sessionStorage.getItem('isExamMode') === 'true';
+                if (isExamModeActive) {
+                    const textArea = document.getElementById('exam-answers-textarea');
+                    if (textArea) {
+                        examAnswerText = textArea.value;
+                    }
+                }
+
+                // Create final object with Thumbnail, Files, and Exam Data
                 const sessionObject = {
                     id: sessionId,
                     timestamp: new Date().getTime(),
@@ -370,7 +400,9 @@
                     videoBlob: blob,
                     thumbnail: thumbnailDataUrl, 
                     files: usedFiles, 
-                    trackingData: sessionDataLog
+                    trackingData: sessionDataLog,
+                    isExamMode: isExamModeActive,
+                    examAnswerText: examAnswerText
                 };
 
                 await saveSessionToDB(sessionObject);

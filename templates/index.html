@@ -100,6 +100,22 @@
         </div>
     </div>
 
+    <div class="container" style="margin-top: 50px; margin-bottom: 50px;">
+        <div style="background: #111; border: 2px dashed #FD871F; border-radius: 8px; padding: 30px; text-align: center; max-width: 800px; margin: 0 auto;">
+            <h3 style="color: #FD871F; margin-top: 0;">Exam Mode</h3>
+            <p style="color: #ccc; font-size: 15px; margin-bottom: 20px;">
+                Upload your Exam Questionnaire (PDF). A secure, blank canvas will be provided for your answers during the session. Upon completion, your answers will be locked and securely attached to the Teacher's Proof of Study PDF.
+            </p>
+            
+            <input type="file" id="examPdfInput" accept="application/pdf" style="color: white; background: #252525; padding: 10px; border-radius: 5px; border: 1px solid #444;">
+            
+            <div style="margin-top: 20px;">
+                <button class="btn-brand" onclick="startExamMode()" style="background: #FD871F; color: #111; border-color: #FD871F;">Start Exam</button>
+            </div>
+            <div id="exam-upload-status" style="margin-top: 15px; font-size: 14px; font-weight: 600;"></div>
+        </div>
+    </div>
+
     <footer class="footer">
         <div class="container text-center">
             <p class="margin-b-0" style="color: #666;">© 2025 GazeGuard Dissertation Project</p>
@@ -118,6 +134,35 @@
                 $('html, body').stop().animate({ scrollTop: target.offset().top }, 1000);
             }
         });
+
+        //Exam Mode initialization
+        function startExamMode() {
+            const fileInput = document.getElementById('examPdfInput');
+            if (fileInput.files.length === 0) {
+                alert("Please upload an Exam PDF first.");
+                return;
+            }
+            
+            document.getElementById('exam-upload-status').innerText = "Preparing Exam Environment...";
+            document.getElementById('exam-upload-status').style.color = "#FD871F";
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/upload_pdf', { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.urls) {
+                    sessionStorage.setItem('gazeGuardPdfUrls', JSON.stringify(data.urls));
+                    sessionStorage.setItem('isExamMode', 'true');
+                    window.location.href = "/session";
+                }
+            })
+            .catch(error => {
+                document.getElementById('exam-upload-status').innerText = "Upload failed.";
+                document.getElementById('exam-upload-status').style.color = "#ff4d4d";
+            });
+        }
 
         // --- CUSTOM TOAST FUNCTION ---
         function showToast(message, type) {
@@ -167,6 +212,7 @@
                     showToast("Please upload a File before starting the session.", "error");
                     return;
                 }
+                sessionStorage.setItem('isExamMode', 'false');
                 window.location.href = "/session";
                 isSessionActive = true;
                 btn.innerText = "Stop Session";

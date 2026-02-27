@@ -115,9 +115,17 @@
             
             <div id="dash-upload-status" style="color: #FD871F; font-size: 14px; min-height: 20px; font-weight: 600;"></div>
 
+            <div style="margin-top: 10px; background: #111; padding: 12px; border-radius: 5px; border: 1px dashed #444;">
+                <label style="color: #FD871F; display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; font-size: 14px; font-weight: bold;">
+                    <input type="checkbox" id="dash-exam-toggle" style="width: 16px; height: 16px; cursor: pointer;">
+                    Enable Exam Mode
+                </label>
+                <p style="color: #888; font-size: 12px; margin: 5px 0 0 26px;">Provides a secure text area for answers that will be locked and attached to the PDF report/Questionnaire.</p>
+            </div>
+
             <div class="buttonContainer" style="justify-content: flex-end; margin-top: 10px;">
                 <button class="deleteCancelBtn" onclick="closeUploadModal()">Cancel</button>
-                <button class="btn-brand" id="dash-start-btn" onclick="startNewSession()" style="padding: 6px 15px; margin: 0; font-size: 14px;">Start Tracking</button>
+                <button id="dash-start-btn" class="btn-brand" onclick="startNewSession()" style="padding: 6px 20px; margin: 0; font-size: 14px; border: none;">Start Tracking</button>
             </div>
         </div>
     </div>
@@ -191,6 +199,7 @@
         let currentSessionData = [];
         let currentVideoBlob = null;
         let scoreChart = null;
+        let currentSessionObj = null;
 
         window.onload = async function() {
             await loadAllSessionsFromDB();
@@ -235,6 +244,11 @@
                 const dateObj = new Date(session.timestamp);
                 const dateStr = dateObj.toLocaleDateString() + " at " + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 
+                //EXAM MODE VISUAL LOGIC
+                const isExam = session.isExamMode === true;
+                const cardClass = isExam ? "session-card exam-card" : "session-card";
+                const examLabel = isExam ? `<span style="color: #d5de73; font-size: 0.9em; margin-left: 8px;">(Exam)</span>` : "";
+
                 const mins = String(Math.floor(session.duration / 60)).padStart(2, '0');
                 const secs = String(session.duration % 60).padStart(2, '0');
                 
@@ -242,12 +256,13 @@
                 if (session.avgScore < 50) scoreClass += ' bad';
                 else if (session.avgScore < 80) scoreClass += ' avg';
 
+                //Injected cardClass and examLabel variables
                 const cardHTML = `
-                    <div class="session-card" onclick="openSessionDetail('${session.id}')">
+                    <div class="${cardClass}" onclick="openSessionDetail('${session.id}')">
                         <img src="${session.thumbnail}" class="session-thumbnail" alt="Session Thumbnail">
                         
                         <div class="session-card-content">
-                            <div class="session-card-header">${dateStr}</div>
+                            <div class="session-card-header">${dateStr} ${examLabel}</div>
                             <div class="session-card-stat">
                                 <span>Duration:</span>
                                 <span>${mins}:${secs}</span>
@@ -311,12 +326,13 @@
 
             currentSessionData = session.trackingData;
             currentVideoBlob = session.videoBlob;
+            currentSessionObj = session;
 
-            // 1. Populate Date Header
+            //Populate Date Header
             const dateObj = new Date(session.timestamp);
             document.getElementById('detail-date-header').innerText = dateObj.toLocaleDateString() + " at " + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // 2. Populate File List
+            //File List Logic
             const fileContainer = document.getElementById('file-list-container');
             fileContainer.innerHTML = ""; 
             if (session.files && session.files.length > 0) {
@@ -330,8 +346,18 @@
                         </div>
                     `;
                 });
-            } else {
-                 fileContainer.innerHTML = `<p style="color: #666; font-style: italic;">No files uploaded during this session.</p>`;
+            }
+            //Render Secured Exam Answers Badge
+            if (session.isExamMode) {
+                fileContainer.innerHTML += `
+                    <div class="file-list-item" style="background: rgba(253, 135, 31, 0.1); border-left: 3px solid #FD871F;">
+                        <span style="color: #FD871F; font-weight: bold;">Exam Answers (Secured)</span>
+                        <span style="font-size: 12px; color: #888;">Teacher Access Only (Appended to PDF Report)</span>
+                    </div>
+                `;
+            } else if (!session.files || session.files.length === 0) {
+                // Only show this message if it's NOT an exam AND the files array is empty
+                fileContainer.innerHTML = `<p style="color: #666; font-style: italic;">No files uploaded during this session.</p>`;
             }
             
             document.getElementById('grid-view').style.display = 'none';
@@ -510,8 +536,10 @@
             document.getElementById('upload-modal-overlay').style.display = 'flex';
             document.getElementById('dashPdfInput').value = "";
             document.getElementById('dash-upload-status').innerText = "";
+            document.getElementById('dash-exam-toggle').checked = false; 
             dashUploadedPdfs = [];
             sessionStorage.removeItem('gazeGuardPdfUrls'); 
+            sessionStorage.removeItem('isExamMode');
         }
 
         function closeUploadModal() {
@@ -563,6 +591,8 @@
                 showToast("Please upload a File before starting the session.", "error");
                 return;
             }
+            const isExam = document.getElementById('dash-exam-toggle').checked;
+            sessionStorage.setItem('isExamMode', isExam ? 'true' : 'false');
             window.location.href = "/session";
         }
 
@@ -648,7 +678,7 @@
                 doc.addImage(imgData, 'PNG', 15, 100, pdfWidth, pdfHeight);
                 const nextSectionY = 100 + pdfHeight + 10;
 
-                // --- THE VERIFICATION SECTION ---
+                //THE VERIFICATION SECTION
                 doc.setDrawColor(253, 135, 31); 
                 doc.setLineWidth(1);
                 doc.rect(20, nextSectionY, 170, 60);
@@ -674,7 +704,31 @@
                 doc.setFontSize(8);
                 doc.setTextColor(150);
                 doc.text(`Proof ID: ${proofId} | System: Local-IndexedDB`, 105, 280, null, null, "center");
-
+                
+                //APPEND EXAM ANSWERS ON PAGE 2
+                if (currentSessionObj && currentSessionObj.isExamMode && currentSessionObj.examAnswerText) {
+                    doc.addPage(); // Create Page 2
+                    
+                    // Header for Page 2
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(18);
+                    doc.setTextColor(253, 135, 31); 
+                    doc.text("Official Exam Answers:", 20, 20);
+                    
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(10);
+                    doc.setTextColor(100);
+                    doc.text(`Proof ID: ${proofId}`, 20, 26);
+                    doc.setDrawColor(200);
+                    doc.line(20, 30, 190, 30);
+                    
+                    // Render Text
+                    doc.setFontSize(12);
+                    doc.setTextColor(0);
+                    const splitText = doc.splitTextToSize(currentSessionObj.examAnswerText, 170);
+                    doc.text(splitText, 20, 40);
+                }
+                
                 doc.save(`GazeGuard_Proof_${proofId}.pdf`);
                 showToast("Proof of Study Generated!", "info");
                 closeShareModal();

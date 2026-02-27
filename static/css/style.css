@@ -1085,3 +1085,8 @@ color: #fff !important;
 opacity: 1; 
 right: 25px; 
 }
+
+.session-card.exam-card:hover {
+border-color: #d5de73 !important;
+box-shadow: 0 10px 20px rgba(213, 222, 115, 0.3) !important;
+}
