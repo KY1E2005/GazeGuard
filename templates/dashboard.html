@@ -639,8 +639,7 @@
                 const canvas = await html2canvas(chartPanel, { scale: 2 });
                 const imgData = canvas.toDataURL('image/png');
                 
-                
-                // Header
+                //Header
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(22);
                 doc.setTextColor(253, 135, 31); 
@@ -655,7 +654,7 @@
                 doc.setDrawColor(200);
                 doc.line(20, 35, 190, 35);
 
-                // Session Stats Section
+                //Session Stats Section
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(14);
                 doc.setTextColor(0);
@@ -664,26 +663,39 @@
                 doc.setFontSize(12);
                 doc.setFont("helvetica", "normal");
                 doc.text(`• Date: ${dateStr}`, 30, 60);
-                
                 doc.text(`• Average Concentration: ${avgScore}`, 30, 70);
-                
                 doc.text(`• Duration: ${duration} (MM:SS)`, 30, 80);
-                
                 doc.text(`• Severe Distractions: ${distractions}`, 30, 90);
 
+                //COLOR LEGEND SECTION
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                doc.text("Chart Legend:", 20, 100);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9);
+                
+                doc.setFillColor(253, 135, 31); doc.rect(20, 103, 4, 4, 'F'); doc.setTextColor(80); doc.text("Normal Focus", 26, 106.5);
+                doc.setFillColor(255, 204, 0); doc.rect(75, 103, 4, 4, 'F'); doc.text("Low Focus (<40%)", 81, 106.5);
+                doc.setFillColor(255, 77, 77); doc.rect(130, 103, 4, 4, 'F'); doc.text("Phone / 0% Score", 136, 106.5);
+                
+                doc.setFillColor(179, 102, 255); doc.rect(20, 109, 4, 4, 'F'); doc.text("Tab Switched/Hidden", 26, 112.5);
+                doc.setFillColor(91, 192, 222); doc.rect(75, 109, 4, 4, 'F'); doc.text("Multiple Faces", 81, 112.5);
+                doc.setFillColor(166, 167, 170); doc.rect(130, 109, 4, 4, 'F'); doc.text("System Error", 136, 112.5);
+
+                //Add Chart Image
                 const imgProps = doc.getImageProperties(imgData);
                 const pdfWidth = 180;
                 const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                // Add Image with dynamic height
-                doc.addImage(imgData, 'PNG', 15, 100, pdfWidth, pdfHeight);
-                const nextSectionY = 100 + pdfHeight + 10;
+                doc.addImage(imgData, 'PNG', 15, 118, pdfWidth, pdfHeight);
+                
+                const nextSectionY = 118 + pdfHeight + 10;
 
-                //THE VERIFICATION SECTION
+                // Verification Section
                 doc.setDrawColor(253, 135, 31); 
                 doc.setLineWidth(1);
                 doc.rect(20, nextSectionY, 170, 60);
 
-                // Add QR Code
+                //QR Code
                 doc.addImage(qrImage, 'GIF', 25, nextSectionY + 5, 50, 50);
 
                 // Instructions
@@ -691,7 +703,6 @@
                 doc.setFontSize(12);
                 doc.setTextColor(0);
                 doc.text("Scan to Verify Authenticity", 80, nextSectionY + 15);
-                
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(10);
                 doc.setTextColor(80);
@@ -701,15 +712,13 @@
                 doc.text("has been tampered with.", 80, nextSectionY + 40);
 
                 // Footer
-                doc.setFontSize(8);
+                doc.setFontSize(9);
                 doc.setTextColor(150);
-                doc.text(`Proof ID: ${proofId} | System: Local-IndexedDB`, 105, 280, null, null, "center");
+                doc.text(`Proof ID: ${proofId} | System: Local-IndexedDB`, 80, nextSectionY + 52);
                 
                 //APPEND EXAM ANSWERS ON PAGE 2
                 if (currentSessionObj && currentSessionObj.isExamMode && currentSessionObj.examAnswerText) {
-                    doc.addPage(); // Create Page 2
-                    
-                    // Header for Page 2
+                    doc.addPage(); 
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(18);
                     doc.setTextColor(253, 135, 31); 
@@ -722,11 +731,20 @@
                     doc.setDrawColor(200);
                     doc.line(20, 30, 190, 30);
                     
-                    // Render Text
+                    // Render basic multi-line text safely with AUTO-PAGINATION
                     doc.setFontSize(12);
                     doc.setTextColor(0);
                     const splitText = doc.splitTextToSize(currentSessionObj.examAnswerText, 170);
-                    doc.text(splitText, 20, 40);
+                    
+                    let cursorY = 40;
+                    for (let i = 0; i < splitText.length; i++) {
+                        if (cursorY > 280) {
+                            doc.addPage();
+                            cursorY = 20;
+                        }
+                        doc.text(splitText[i], 20, cursorY);
+                        cursorY += 6;
+                    }
                 }
                 
                 doc.save(`GazeGuard_Proof_${proofId}.pdf`);

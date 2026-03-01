@@ -139,7 +139,7 @@
         function startExamMode() {
             const fileInput = document.getElementById('examPdfInput');
             if (fileInput.files.length === 0) {
-                alert("Please upload an Exam PDF first.");
+                showToast("Please upload your Questionnaire first.", "error");
                 return;
             }
             
