@@ -1090,3 +1090,102 @@ right: 25px;
 border-color: #d5de73 !important;
 box-shadow: 0 10px 20px rgba(213, 222, 115, 0.3) !important;
 }
+
+@media (max-width: 768px) {
+*, *::before, *::after {
+box-sizing: border-box !important;
+}
+
+.btn-brand {
+padding: 10px 15px !important;
+font-size: 13px !important;
+}
+
+.header .btn-brand {
+padding: 6px 12px !important;
+font-size: 12px !important;
+width: auto !important;
+}
+
+#detail-view > div:first-child {
+flex-direction: column;
+align-items: stretch !important;
+gap: 10px;
+}
+
+.btn-share-custom {
+width: 100%;
+height: 38px;
+min-height: 38px;
+}
+
+.file-list-container {
+padding: 10px;
+max-height: 120px;
+}
+
+.file-list-item {
+font-size: 12px;
+padding: 5px 0;
+flex-direction: column;
+align-items: stretch;
+gap: 8px;
+}
+
+.btn-file-dl {
+padding: 6px 8px;
+font-size: 11px;
+width: 100%;
+}
+
+.stats-row {
+display: flex !important;
+flex-direction: column !important;
+gap: 10px;
+width: 100%;
+}
+
+.stat-card {
+padding: 12px;
+font-size: 13px;
+width: 100%;
+}
+
+.stat-value {
+font-size: 1.5rem;
+}
+
+.review-workspace {
+display: flex !important;
+flex-direction: column !important;
+height: auto !important;
+gap: 10px;
+width: 100%;
+}
+
+.video-panel {
+min-height: auto;
+width: 100% !important;
+aspect-ratio: 16/9;
+}
+
+.chart-panel {
+min-height: 220px !important;
+max-height: 220px !important;
+width: 100% !important;
+padding: 10px;
+}
+
+.action-row {
+display: flex !important;
+flex-direction: column !important;
+gap: 10px;
+margin-top: 10px;
+width: 100%;
+}
+
+.action-row button {
+width: 100% !important;
+margin: 0 !important;
+}
+}

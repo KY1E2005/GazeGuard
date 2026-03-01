@@ -8,13 +8,14 @@
     <link href="http://fonts.googleapis.com/css?family=Hind:400,600,700" rel="stylesheet" type="text/css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" type="text/css"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 </head>
 
-<body style="background-color: var(--bg-dark); color: white; padding-top: 70px; margin: 0;">
+<body style="background-color: var(--bg-dark); color: white; padding-top: 70px; margin: 0; overflow-x: hidden">
 
     <div id="toast-container"></div>
 
@@ -25,7 +26,7 @@
                     <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GazeGuard" style="height: 45px;">
                 </a>
             </div>
-            <a href="/" class="btn-brand" style="pointer-events: auto; padding: 8px 20px; margin: 0; font-size: 14px; cursor: pointer;">Return Home</a>
+            <a href="/" class="btn-brand" style="pointer-events: auto; padding: 8px 20px; margin: 0; font-size: 14px; cursor: pointer; width: auto !important; display: inline-block !important;">Return Home</a>
         </div>
     </header>
 
@@ -89,13 +90,18 @@
             <div class="video-panel">
                 <video id="session-video" controls></video>
             </div>
-            <div class="chart-panel">
-                <canvas id="scoreChart"></canvas>
+            <div class="chart-panel" style="position: relative;">
+                <div style="position: absolute; top: 10px; right: 15px; z-index: 10; display: flex; align-items: center; gap: 10px;">
+                    <span style="color: #888; font-size: 11px; font-style: italic;">(Scroll to Zoom, Drag to Pan)</span>
+                    <button onclick="if(scoreChart) scoreChart.resetZoom()" style="background: #111; color: #FD871F; border: 1px solid #FD871F; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;">Reset Zoom</button>
+                </div>
+                <canvas id="scoreChart" style="cursor: grab;" onmousedown="this.style.cursor='grabbing'" onmouseup="this.style.cursor='grab'" onmouseleave="this.style.cursor='grab'"></canvas>
             </div>
         </div>
 
         <div class="action-row">
             <button class="btn-brand btn-data" onclick="downloadData()">Download Data (.json)</button>
+            <button class="btn-brand btn-data" onclick="downloadCSV()">Download CSV</button>
             <button class="btn-brand" onclick="downloadVideo()" id="btn-dl-video">Download Video (.webm)</button>
         </div>
     </div> 
@@ -510,12 +516,34 @@
             });
         }
 
-        // --- EXPORT FUNCTIONS ---
+        //EXPORT FUNCTIONS
         function downloadVideo() {
             if (!currentVideoBlob) return;
             const a = document.createElement('a');
             a.href = URL.createObjectURL(currentVideoBlob);
             a.download = `GazeGuard_Video_${new Date().getTime()}.webm`;
+            a.click();
+        }
+
+        function downloadCSV() {
+            if (currentSessionData.length === 0) return;
+            const headers = ["Time (s)", "Score (%)", "Status", "Beep Active", "Phone Detected", "MAR Action", "Multiple Faces"];
+            
+            const rows = currentSessionData.map(d => [
+                d.time,
+                d.score,
+                `"${d.status}"`,
+                d.beep_active,
+                d.phone_detected,
+                `"${d.mar_action}"`,
+                d.multiple_faces
+            ].join(","));
+            const csvContent = [headers.join(","), ...rows].join("\n");
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `GazeGuard_Data_${new Date().getTime()}.csv`;
             a.click();
         }
 
@@ -529,7 +557,7 @@
             a.click();
         }
 
-        // --- UPLOAD MODAL & SESSION SHORTCUT LOGIC ---
+        //UPLOAD MODAL & SESSION SHORTCUT LOGIC
         let dashUploadedPdfs = [];
 
         function openUploadModal() {
