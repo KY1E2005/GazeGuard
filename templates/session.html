@@ -38,8 +38,27 @@
                     <div class="status-icon">Checking...</div>
                 </div>
             </div>
-            <div class="check-list">
+            <div id="session-goal-container" style="margin-bottom: 15px; text-align: center; background: #111; padding: 12px; border-radius: 8px; border: 1px solid #333;">
+                <label style="color: #ccc; font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block;">Set Study Goal (Optional):</label>
+                <div style="display: flex; gap: 20px; justify-content: center;">
+                    <div>
+                        <span style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">Minutes</span>
+                        <div class="number-control">
+                            <div class="number-left" onclick="stepTimer('session-goal-min', -1)">-</div>
+                            <input type="number" id="session-goal-min" class="number-quantity" value="0" min="0">
+                            <div class="number-right" onclick="stepTimer('session-goal-min', 1)">+</div>
+                        </div>
+                    </div>
+                    <div>
+                        <span style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">Seconds</span>
+                        <div class="number-control">
+                            <div class="number-left" onclick="stepTimer('session-goal-sec', -1, 59)">-</div>
+                            <input type="number" id="session-goal-sec" class="number-quantity" value="0" min="0" max="59">
+                            <div class="number-right" onclick="stepTimer('session-goal-sec', 1, 59)">+</div>
+                        </div>
+                    </div>
                 </div>
+            </div>
             <div style="margin-bottom: 20px; text-align: left; background: #111; padding: 12px; border-radius: 8px; border: 1px solid #333;">
                 <label style="color: #ccc; display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; font-size: 15px;">
                     <input type="checkbox" id="record-session-checkbox" checked style="width: 18px; height: 18px; cursor: pointer;">
@@ -73,10 +92,23 @@
     <div class="bottom-bar">
         <div class="session-timer">
             <span id="timer-display">00:00:00</span>
+            <span id="goal-display" style="font-size: 14px; color: #888; margin-left: 5px; display: none;"></span>
         </div>
         <button class="end-session-btn" onclick="endSession()">
             End Session <span class="icon-x">✖</span>
         </button>
+    </div>
+    <div id="goal-toast-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: #252525; border-top: 5px solid #00d26a; padding: 30px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 400px; font-family: 'Hind', sans-serif; text-align: center;">
+            <h4 style="color: white; margin: 0 0 15px 0; font-size: 20px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span style="color: #00d26a;">✔</span> Goal Reached!
+            </h4>
+            <p style="color: #ccc; font-size: 15px; margin: 0 0 25px 0;">You have successfully completed your study target. The session is currently paused.</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button onclick="resumeSession()" style="background: #00d26a; color: #111; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s;">Continue Session</button>
+                <button onclick="endSession()" style="background: #ff4d4d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s;">End Session</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -84,7 +116,17 @@
         let sessionTimerInterval;
         let sessionSeconds = 0;
 
-        // --- LOAD MEDIA AND ADAPT LAYOUT ---
+        function stepTimer(id, step, max = Infinity) {
+            const input = document.getElementById(id);
+            if (input.disabled) return;
+            let val = parseInt(input.value) || 0;
+            val += step;
+            if (val < 0) val = 0;
+            if (val > max) val = max;
+            input.value = val;
+        }
+
+        //LOAD MEDIA AND ADAPT LAYOUT
         window.onload = function() {
             const urlsJson = sessionStorage.getItem('gazeGuardPdfUrls');
             const docType = sessionStorage.getItem('gazeGuardDocType');
@@ -155,6 +197,15 @@
             const iframe = leftPanel.querySelector('iframe');
             if(iframe) iframe.style.height = '50%';
         }
+            const storedGoal = sessionStorage.getItem('goalTimeMinutes');
+            if (storedGoal) {
+                document.getElementById('session-goal-timer').value = storedGoal;
+            }
+            if (isExamMode) {
+                document.getElementById('session-goal-container').style.display = 'none';
+                document.getElementById('session-goal-min').value = "0"; // Force 0
+                document.getElementById('session-goal-sec').value = "0"; // Force 0
+            }
             startCalibration();
         };
 
@@ -275,59 +326,102 @@
 
         function confirmStart() {
             clearInterval(checkInterval);
-            //Check if the user opted in to recording
+            const min = parseInt(document.getElementById('session-goal-min').value) || 0;
+            const sec = parseInt(document.getElementById('session-goal-sec').value) || 0;
+            const totalSeconds = (min * 60) + sec;
+            sessionStorage.setItem('goalTimeSeconds', totalSeconds);
             isRecordingEnabled = document.getElementById('record-session-checkbox').checked;
             document.getElementById('calibration-modal').style.display = 'none';
-            startTimer();
-            //Start the silent data logger if opted in
             if (isRecordingEnabled) {
-                startDataLogger();
                 startVideoRecorder();
             }
+            startTimer();
         }
 
-        // --- GLOBAL TIMER FUNCTIONS ---
+        //GLOBAL TIMER & SYNCHRONIZED LOGGER
+        let goalReached = false;
+        let goalChimeAudio = null;
         function startTimer() {
+            const storedGoalSeconds = sessionStorage.getItem('goalTimeSeconds');
+            const goalSeconds = storedGoalSeconds ? parseInt(storedGoalSeconds) : 0;
+
+            if (goalSeconds > 0) {
+                const displayMin = String(Math.floor(goalSeconds / 60)).padStart(2, '0');
+                const displaySec = String(goalSeconds % 60).padStart(2, '0');
+                document.getElementById('goal-display').innerText = `/ ${displayMin}:${displaySec}`;
+                document.getElementById('goal-display').style.display = 'inline';
+            }
+
             sessionTimerInterval = setInterval(() => {
                 sessionSeconds++;
                 const hrs = String(Math.floor(sessionSeconds / 3600)).padStart(2, '0');
                 const mins = String(Math.floor((sessionSeconds % 3600) / 60)).padStart(2, '0');
                 const secs = String(sessionSeconds % 60).padStart(2, '0');
                 document.getElementById('timer-display').innerText = `${hrs}:${mins}:${secs}`;
+
+                //the data is locked to the exact second on the timer
+                if (isRecordingEnabled) {
+                    const currentSec = sessionSeconds; 
+                    fetch('/get_status')
+                    .then(res => res.json())
+                    .then(data => {
+                        let finalScore = data.score || 0;
+                        let finalStatus = data.status || "Unknown";
+                        let finalBeep = data.beep_active || false;
+
+                        if (!isTabVisible) {
+                            finalScore = 0;
+                            finalStatus = "Tab Switched/Hidden";
+                            finalBeep = true;
+                        }
+
+                        sessionDataLog.push({
+                            time: currentSec,
+                            score: finalScore,
+                            status: finalStatus,
+                            beep_active: finalBeep,
+                            phone_detected: data.phone_detected || false,
+                            mar_action: data.mar_action || "None",
+                            multiple_faces: data.multiple_faces || false
+                        });
+                    }).catch(e => console.error(e));
+                }
+
+                if (goalSeconds > 0 && sessionSeconds >= goalSeconds && !goalReached) {
+                    goalReached = true;
+                    
+                    document.querySelector('.session-timer').style.color = '#00d26a';
+                    
+                    if (!goalChimeAudio) {
+                        goalChimeAudio = new Audio("/assets/chime.wav");
+                        goalChimeAudio.loop = true;
+                        goalChimeAudio.volume = 0.5;
+                    }
+                    goalChimeAudio.play().catch(e => console.log("Audio blocked by browser."));
+                    
+                    document.getElementById('goal-toast-overlay').style.display = 'flex';
+                    clearInterval(sessionTimerInterval);
+                    if (isRecordingEnabled && mediaRecorder && mediaRecorder.state === "recording") {
+                        mediaRecorder.pause();
+                    }
+                    //Pause uploaded study videos
+                    document.querySelectorAll('video.pdf-frame').forEach(v => v.pause());
+                }
             }, 1000);
         }
 
-        // ---THE DATA LOGGER ---
-        function startDataLogger() {
-            dataLoggerInterval = setInterval(() => {
-                fetch('/get_status')
-                .then(res => res.json())
-                .then(data => {
-                    
-                    //Extract the raw backend data
-                    let finalScore = data.score || 0;
-                    let finalStatus = data.status || "Unknown";
-                    let finalBeep = data.beep_active || false;
-
-                    //Intercept and penalize if the tab is hidden
-                    if (!isTabVisible) {
-                        finalScore = 0;
-                        finalStatus = "Tab Switched/Hidden";
-                        finalBeep = true; // Triggers a 'Severe Distraction' on the dashboard
-                    }
-
-                    //Save to the log
-                    sessionDataLog.push({
-                        time: sessionSeconds,
-                        score: finalScore,
-                        status: finalStatus,
-                        beep_active: finalBeep,
-                        phone_detected: data.phone_detected || false,
-                        mar_action: data.mar_action || "None",
-                        multiple_faces: data.multiple_faces || false
-                    });
-                });
-            }, 1000); 
+        function resumeSession() {
+            document.getElementById('goal-toast-overlay').style.display = 'none';
+            if (goalChimeAudio) {
+                goalChimeAudio.pause();
+                goalChimeAudio.currentTime = 0;
+            }
+            if (isRecordingEnabled && mediaRecorder && mediaRecorder.state === "paused") {
+                mediaRecorder.resume();
+            }
+            //Resume uploaded study videos
+            document.querySelectorAll('video.pdf-frame').forEach(v => v.play());
+            startTimer();
         }
 
         function startVideoRecorder() {
@@ -435,10 +529,13 @@
         }
 
         function endSession() {
+            // Stop chime if the user clicks End while it is ringing
+            if (goalChimeAudio) {
+                goalChimeAudio.pause();
+            }
             document.getElementById('webcam-feed').src = ""; 
-            
             if (isRecordingEnabled && sessionDataLog.length > 0) {
-                clearInterval(dataLoggerInterval);
+                clearInterval(sessionTimerInterval);
                 clearInterval(canvasDrawInterval);
                 mediaRecorder.stop();
                 fetch('/shutdown_camera');

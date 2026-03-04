@@ -1189,3 +1189,92 @@ width: 100% !important;
 margin: 0 !important;
 }
 }
+
+.number-control {
+display: flex;
+align-items: center;
+}
+
+.number-left, .number-right {
+background-color: #333333;
+display: flex;
+align-items: center;
+justify-content: center;
+border: 1px solid #444;
+width: 30px;
+height: 36px;
+color: white;
+transition: background-color 0.3s;
+cursor: pointer;
+font-size: 18px;
+user-select: none;
+}
+
+.number-left {
+border-radius: 4px 0 0 4px;
+border-right: none;
+}
+
+.number-right {
+border-radius: 0 4px 4px 0;
+border-left: none;
+}
+
+.number-quantity {
+padding: 0.25rem;
+border: 1px solid #444;
+width: 50px;
+height: 36px;
+-moz-appearance: textfield;
+background: #252525;
+color: white;
+text-align: center;
+font-size: 15px;
+box-sizing: border-box;
+}
+
+.number-quantity::-webkit-outer-spin-button,
+.number-quantity::-webkit-inner-spin-button {
+-webkit-appearance: none;
+margin: 0;
+}
+
+.number-left:hover, .number-right:hover {
+background-color: #666666;
+}
+
+.custom-file-input {
+display: flex;
+width: 100%;
+border-radius: 6px;
+border: 1px solid #444;
+background-color: #111;
+color: #888;
+font-size: 14px;
+cursor: pointer;
+box-sizing: border-box;
+font-family: 'Hind', sans-serif;
+margin-top: 10px;
+transition: border-color 0.2s;
+}
+
+.custom-file-input:hover {
+border-color: #FD871F;
+}
+
+.custom-file-input::file-selector-button {
+border: none;
+border-right: 1px solid #444;
+background-color: #252525;
+color: white;
+padding: 10px 15px;
+margin-right: 15px;
+font-weight: 600;
+cursor: pointer;
+transition: background-color 0.2s, color 0.2s;
+}
+
+.custom-file-input::file-selector-button:hover {
+background-color: #FD871F;
+color: #111;
+}

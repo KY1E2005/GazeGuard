@@ -91,11 +91,11 @@
                 <video id="session-video" controls></video>
             </div>
             <div class="chart-panel" style="position: relative;">
-                <div style="position: absolute; top: 10px; right: 15px; z-index: 10; display: flex; align-items: center; gap: 10px;">
+                <div data-html2canvas-ignore="true" style="position: absolute; top: 10px; right: 15px; z-index: 10; display: flex; align-items: center; gap: 10px;">
                     <span style="color: #888; font-size: 11px; font-style: italic;">(Scroll to Zoom, Drag to Pan)</span>
                     <button onclick="if(scoreChart) scoreChart.resetZoom()" style="background: #111; color: #FD871F; border: 1px solid #FD871F; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;">Reset Zoom</button>
                 </div>
-                <canvas id="scoreChart" style="cursor: grab;" onmousedown="this.style.cursor='grabbing'" onmouseup="this.style.cursor='grab'" onmouseleave="this.style.cursor='grab'"></canvas>
+                <canvas id="scoreChart" style="cursor: default;" onmousedown="this.style.cursor='grabbing'" onmouseup="this.style.cursor='default'" onmouseleave="this.style.cursor='default'"></canvas>
             </div>
         </div>
 
@@ -117,7 +117,7 @@
             <h3 style="color: white; margin: 0;">Prepare New Session</h3>
             <p style="color: #ccc; font-size: 14px; margin: 0;">Upload study materials (.pdf, .png, .jpeg, .mp4, .webm) up to 3 files.</p>
             
-            <input type="file" id="dashPdfInput" accept="application/pdf, image/png, image/jpeg, video/mp4, video/webm" multiple style="color: white; background: #111; padding: 10px; border-radius: 5px; border: 1px solid #444; margin-top: 10px;">
+            <input type="file" id="dashPdfInput" class="custom-file-input" accept="application/pdf, image/png, image/jpeg, video/mp4, video/webm" multiple>
             
             <div id="dash-upload-status" style="color: #FD871F; font-size: 14px; min-height: 20px; font-weight: 600;"></div>
 
@@ -201,6 +201,27 @@
             }, 3000);
         }
         
+        //ANTI-CHEAT ANCHOR SEQUENCE
+        function generateAnchorSequence(text) {
+            if (!text || text.trim().length === 0) return { count: 0, anchors: "N/A" };
+            //Strips HTML and punctuation to get a clean array of pure words
+            const cleanText = text.replace(/<[^>]*>?/gm, ' ').replace(/[^\w\s]/gi, '').trim();
+            const words = cleanText.split(/\s+/).filter(w => w.length > 0);
+            
+            let anchorList = [];
+            // Extract every 5th word
+            for (let i = 4; i < words.length; i += 5) {
+                anchorList.push(words[i]);
+            }
+            
+            // Cap at 40 words
+            let anchorString = anchorList.slice(0, 40).join(", ");
+            if (anchorList.length > 40) anchorString += "...";
+            if (anchorList.length === 0 && words.length > 0) anchorString = "Text too short to sequence (minimum 5 words needed)";
+
+            return { wordCount: words.length, anchors: anchorString };
+        }
+
         let allSessions = [];
         let currentSessionData = [];
         let currentVideoBlob = null;
@@ -397,7 +418,7 @@
             const avgScore = Math.round(totalScore / currentSessionData.length);
             document.getElementById('stat-avg-score').innerText = `${avgScore}%`;
 
-            const totalSeconds = currentSessionData[currentSessionData.length - 1].time;
+            const totalSeconds = currentSessionObj.duration;
             const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
             const secs = String(totalSeconds % 60).padStart(2, '0');
             document.getElementById('stat-duration').innerText = `${mins}:${secs}`;
@@ -560,6 +581,29 @@
         //UPLOAD MODAL & SESSION SHORTCUT LOGIC
         let dashUploadedPdfs = [];
 
+        document.getElementById('dash-exam-toggle').addEventListener('change', function(e) {
+            const fileInput = document.getElementById('dashPdfInput');
+            const statusDiv = document.getElementById('dash-upload-status');
+            
+            if (e.target.checked) {
+                fileInput.accept = "application/pdf";
+                
+                if (dashUploadedPdfs.length > 0) {
+                    const hasNonPdf = dashUploadedPdfs.some(url => !url.toLowerCase().endsWith('.pdf'));
+                    if (hasNonPdf) {
+                        dashUploadedPdfs = [];
+                        sessionStorage.removeItem('gazeGuardPdfUrls');
+                        fileInput.value = "";
+                        statusDiv.innerText = "Exam Mode requires PDFs. Previous files cleared.";
+                        statusDiv.style.color = "#ff4d4d";
+                        showToast("Exam Mode requires PDF files only. Please re-upload.", "error");
+                    }
+                }
+            } else {
+                fileInput.accept = "application/pdf, image/png, image/jpeg, video/mp4, video/webm";
+            }
+        });
+
         function openUploadModal() {
             document.getElementById('upload-modal-overlay').style.display = 'flex';
             document.getElementById('dashPdfInput').value = "";
@@ -620,6 +664,13 @@
                 return;
             }
             const isExam = document.getElementById('dash-exam-toggle').checked;
+            if (isExam) {
+                const hasNonPdf = dashUploadedPdfs.some(url => !url.toLowerCase().endsWith('.pdf'));
+                if (hasNonPdf) {
+                    showToast("Exam Mode requires PDF Questionnaires only.", "error");
+                    return;
+                }
+            }
             sessionStorage.setItem('isExamMode', isExam ? 'true' : 'false');
             window.location.href = "/session";
         }
@@ -643,9 +694,19 @@
             const dateStr = document.getElementById('detail-date-header').innerText;
             const proofId = document.getElementById('share-proof-id').innerText;
 
+            //CALCULATE ANCHOR SEQUENCE
+            let anchorData = { wordCount: 0, anchors: "N/A" };
+            if (currentSessionObj && currentSessionObj.isExamMode && currentSessionObj.examAnswerText) {
+                anchorData = generateAnchorSequence(currentSessionObj.examAnswerText);
+            }
+
             //Generates "Truth" QR Code
-            const verificationString = `GAZEGUARD OFFICIAL RECORD\nID: ${proofId}\nDate: ${dateStr}\nAverage Concentration: ${avgScore}\nDuration: ${duration}\nDistractions: ${distractions}`;
+            let verificationString = `GAZEGUARD OFFICIAL RECORD\nID: ${proofId}\nDate: ${dateStr}\nAverage Concentration: ${avgScore}\nDuration: ${duration}\nDistractions: ${distractions}`;
             
+            if (currentSessionObj && currentSessionObj.isExamMode) {
+                verificationString += `\n\nEXAM VERIFICATION:\nWord Count: ${anchorData.wordCount}\nEvery 5th Word: ${anchorData.anchors}`;
+            }
+
             const qr = qrcode(0, 'L'); 
             qr.addData(verificationString);
             qr.make();
@@ -734,15 +795,27 @@
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(10);
                 doc.setTextColor(80);
-                doc.text("This QR code contains the unalterable digital", 80, nextSectionY + 25);
-                doc.text("record of this session. If the data in this scan", 80, nextSectionY + 30);
-                doc.text("does not match the text above, this document", 80, nextSectionY + 35);
-                doc.text("has been tampered with.", 80, nextSectionY + 40);
+
+                if (currentSessionObj && currentSessionObj.isExamMode) {
+                    doc.text("This QR code contains an unalterable 'Anchor Sequence'", 80, nextSectionY + 25);
+                    doc.text("which locks in every 5th word of the original exam.", 80, nextSectionY + 30);
+                    doc.text("If the student added, deleted, or changed their answer,", 80, nextSectionY + 35);
+                    doc.text("the printed words will not match the scanned sequence.", 80, nextSectionY + 40);
+                } else {
+                    doc.text("This QR code contains the unalterable digital", 80, nextSectionY + 25);
+                    doc.text("record of this session. If the data in this scan", 80, nextSectionY + 30);
+                    doc.text("does not match the text above, this document", 80, nextSectionY + 35);
+                    doc.text("has been tampered with.", 80, nextSectionY + 40);
+                }
 
                 // Footer
                 doc.setFontSize(9);
                 doc.setTextColor(150);
-                doc.text(`Proof ID: ${proofId} | System: Local-IndexedDB`, 80, nextSectionY + 52);
+                if (currentSessionObj && currentSessionObj.isExamMode) {
+                    doc.text(`Proof ID: ${proofId} | Original Word Count: ${anchorData.wordCount}`, 80, nextSectionY + 52);
+                } else {
+                    doc.text(`Proof ID: ${proofId} | System: Local-IndexedDB`, 80, nextSectionY + 52);
+                }
                 
                 //APPEND EXAM ANSWERS ON PAGE 2
                 if (currentSessionObj && currentSessionObj.isExamMode && currentSessionObj.examAnswerText) {

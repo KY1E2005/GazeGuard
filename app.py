@@ -257,7 +257,7 @@ def generate_frames():
                     else:
                         look_away_start = None
 
-                    if duration > 5.0:
+                    if duration > 3.0:
                         should_play_beep = True
                         cv2.putText(frame, "Stay Focus", (int(width/2 - 100), int(height * 0.3)), 
                                    cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)
@@ -398,6 +398,11 @@ def upload_pdf():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/assets/<filename>')
+def serve_assets(filename):
+    assets_dir = os.path.join(os.path.dirname(__file__), "assets")
+    return send_from_directory(assets_dir, filename)
 
 @app.route('/get_status')
 def get_status():

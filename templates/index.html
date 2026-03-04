@@ -88,7 +88,7 @@
                         <h3>Study Material</h3>
                         <p class="text-muted">Accepted File Formats: .pdf, .png, .jpeg, .mp4, .webm.</p>
                         
-                        <input type="file" id="pdfInput" class="form-control" accept="application/pdf, image/png, image/jpeg, video/mp4, video/webm" multiple>
+                        <input type="file" id="pdfInput" class="custom-file-input" accept="application/pdf, image/png, image/jpeg, video/mp4, video/webm" multiple>
                         <button id="removePdfBtn" class="btn-remove-pdf" onclick="removePDF()">✕ Remove File</button>
                         <div class="pdf-viewer-container">
                             <p class="placeholder-text">PREVIEW</p>
@@ -107,7 +107,7 @@
                 Upload your Exam Questionnaire (PDF). A secure, blank canvas will be provided for your answers during the session. Upon completion, your answers will be locked and securely attached to the Teacher's Proof of Study PDF.
             </p>
             
-            <input type="file" id="examPdfInput" accept="application/pdf" style="color: white; background: #252525; padding: 10px; border-radius: 5px; border: 1px solid #444;">
+            <input type="file" id="examPdfInput" class="custom-file-input" accept="application/pdf">
             
             <div style="margin-top: 20px;">
                 <button class="btn-brand" onclick="startExamMode()" style="background: #FD871F; color: #111; border-color: #FD871F;">Start Exam</button>
