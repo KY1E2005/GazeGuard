@@ -22,7 +22,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RECORDS_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RECORDS_FOLDER'] = RECORDS_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024 # 200MB limit for video uploads
 
 # visual state
 ui_state = {
@@ -63,6 +63,7 @@ mp_face_mesh = mp.solutions.face_mesh
 camera = None
 
 def get_camera():
+    """Initializes and returns the webcam instance based on config parameters."""
     global camera
     if camera is None or not camera.isOpened():
         camera = cv2.VideoCapture(config.CAMERA_INDEX)
@@ -71,7 +72,10 @@ def get_camera():
     return camera
 
 def generate_frames():
+    """The core video processing generator. Captures frames from the webcam, runs them 
+    through the AI models, updates the global state, and yields JPEG frames to the browser."""
     def create_error_frame(message):
+        """Helper to generate a visual error screen if the camera fails."""
         blank_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         text_size = cv2.getTextSize(message, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
         text_x = (640 - text_size[0]) // 2
@@ -116,14 +120,16 @@ def generate_frames():
                 cam = get_camera()
                 continue
             
-            frame = cv2.flip(frame, 1)
+            frame = cv2.flip(frame, 1) # Mirror image for natural user experience
             height, width, _ = frame.shape
             font_scale = width / 640.0
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             global_brightness = np.mean(gray)
+            # Run background AI tasks
             phone_detected, phone_box = detector.detect(frame)
             results = tracker.process_frame(frame)
 
+            # Determine basic calibration status
             is_centered = False
             if results.multi_face_landmarks:
                 face_x = results.multi_face_landmarks[0].landmark[1].x 
@@ -143,6 +149,7 @@ def generate_frames():
             score = 0 
             current_status_text = "Unknown" 
             
+            # --- LOGIC BRANCH 1: No Face Detected ---
             if not results.multi_face_landmarks:
                 if global_brightness < 50:
                     current_status_text = "Too Dark" # Assign dark state 
@@ -166,6 +173,7 @@ def generate_frames():
                     beep_sound.stop()
                     is_beep_playing = False
 
+            # --- LOGIC BRANCH 2: Faces Detected ---
             else:
                 all_faces = results.multi_face_landmarks
                 screen_center_x = 0.5 
@@ -178,6 +186,7 @@ def generate_frames():
                 main_face = sorted_faces[0][0]
                 main_nose_x = sorted_faces[0][2]
 
+                # Dynamic Face Brightness (Ensures the face itself is illuminated, not just the background)
                 try:
                     h_img, w_img = gray.shape
                     x_min = int(min([l.x for l in main_face.landmark]) * w_img)
@@ -262,7 +271,7 @@ def generate_frames():
                         cv2.putText(frame, "Stay Focus", (int(width/2 - 100), int(height * 0.3)), 
                                    cv2.FONT_HERSHEY_SIMPLEX, 1.2 * font_scale, (0, 165, 255), 2)
                         
-                        # --- MAR ACTION LOGIC ---
+                        # --- MAR ACTION LOGIC (Yawning/Talking) ---
                     if mar > 0.45:
                         current_action = "Yawning"
                     elif mar > 0.25:
@@ -274,19 +283,19 @@ def generate_frames():
 
                     # --- VISUALS TOGGLE ---
                     if ui_state['show_landmarks']:
-                        # 1. Draw Mesh
+                        # Draw Mesh
                         mp_drawing.draw_landmarks(
                             image=frame, landmark_list=main_face,
                             connections=mp_face_mesh.FACEMESH_TESSELATION,
                             landmark_drawing_spec=None,
                             connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
-                        # 2. Draw Irises
+                        # Draw Irises
                         mp_drawing.draw_landmarks(
                             image=frame, landmark_list=main_face,
                             connections=mp_face_mesh.FACEMESH_IRISES,
                             landmark_drawing_spec=None,
                             connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style())
-                        # 3. Draw Debug Data
+                        # Draw Debug Data
                         cv2.putText(frame, f"Gaze: {gaze:.2f} | Pitch: {pitch:.0f} | MAR: {mar:.2f}", 
                                     (30, height - 30), cv2.FONT_HERSHEY_PLAIN, 1.0 * font_scale, (255, 255, 0), 1)
 
@@ -300,6 +309,7 @@ def generate_frames():
                     cv2.putText(frame, status_text, (30, int(90 * font_scale)), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.7 * font_scale, (255, 255, 255), 2)
 
+            # --- AUDIO ALERTS & CONTROLS ---
             if phone_detected:
                  if phone_box: 
                      bx, by, bw, bh = phone_box
@@ -327,7 +337,7 @@ def generate_frames():
                     beep_sound.stop()
                     is_beep_playing = False
 
-            # --- APPEND TRACKING DATA TO GLOBAL STATUS ---
+            # --- UPDATE GLOBAL STATUS FOR FRONTEND ---
             current_system_status['score'] = int(score) if system_active else 0
             current_system_status['status'] = current_status_text
             current_system_status['beep_active'] = is_beep_playing
@@ -339,11 +349,12 @@ def generate_frames():
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-                   
+
     finally:
         if is_beep_playing and beep_sound: beep_sound.stop()
         if phone_sound: phone_sound.stop()
 
+# --- FLASK ROUTES & API ENDPOINTS ---
 @app.route('/')
 def index():
     return render_template('index.html')

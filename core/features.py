@@ -2,8 +2,12 @@ import numpy as np
 import cv2
 
 class FeatureExtractor:
+    """A utility class that extracts specific metrics from MediaPipe 3D face landmarks.
+    Calculates Eye Aspect Ratio (EAR), Gaze Ratio, Head Pose (Pitch/Yaw/Roll), 
+    and Mouth Aspect Ratio (MAR)."""
+    
     def __init__(self):
-        # --- Landmark Indices ---
+        # Landmark Indices
         self.LEFT_EYE = [33, 160, 158, 133, 153, 144]
         self.RIGHT_EYE = [362, 385, 387, 263, 373, 380]
         
@@ -14,18 +18,23 @@ class FeatureExtractor:
         ])
 
     def get_EAR(self, landmarks):
-        def get_coords(indices):
+        """Calculates the average Eye Aspect Ratio (EAR) for both eyes.
+        Used to detect blinking or sleeping."""
+        
+        def get_coords(indices): # Helper function to extract coordinates for given landmark indices
             return np.array([(landmarks[i].x, landmarks[i].y) for i in indices])
+        
         left_ear = self._calculate_eye_ratio(get_coords(self.LEFT_EYE))
         right_ear = self._calculate_eye_ratio(get_coords(self.RIGHT_EYE))
-        return (left_ear + right_ear) / 2.0
+        return (left_ear + right_ear) / 2.0 # Return the average of both eyes
 
     def _calculate_eye_ratio(self, eye_points):
+        """Computes the mathematical ratio of the eye's height to its width."""
         A = np.linalg.norm(eye_points[1] - eye_points[5])
         B = np.linalg.norm(eye_points[2] - eye_points[4])
         C = np.linalg.norm(eye_points[0] - eye_points[3])
-        if C == 0: return 0.0
-        return (A + B) / (2.0 * C)
+        if C == 0: return 0.0 # Avoid division by zero in case of tracking errors
+        return (A + B) / (2.0 * C) # Standard EAR formula
 
     def get_gaze_ratio(self, landmarks):
         """Calculates iris position RELATIVE to the eye corners.
@@ -35,17 +44,20 @@ class FeatureExtractor:
             corner_B = np.array([landmarks[eye_indices[3]].x, landmarks[eye_indices[3]].y])
             iris = np.array([landmarks[iris_index].x, landmarks[iris_index].y])
             eye_width = np.linalg.norm(corner_A - corner_B)
-            if eye_width == 0: return 0.5
+            if eye_width == 0: return 0.5 # Default to center if tracking fails
             dist_to_A = np.linalg.norm(iris - corner_A)
-            return dist_to_A / eye_width
+            return dist_to_A / eye_width # Ratio of the iris distance compared to the total eye width
 
+        # Landmark 468 is left iris, 473 is right iris
         ratio_left = get_eye_ratio(self.LEFT_EYE, 468)
         ratio_right = get_eye_ratio(self.RIGHT_EYE, 473)
         return (ratio_left + ratio_right) / 2.0
 
     def get_head_pose(self, landmarks, frame_shape):
+        """Estimates the 3D orientation of the head (Pitch, Yaw, Roll) using 2D image landmarks."""
         img_h, img_w, _ = frame_shape
         face_2d = []
+        # Extract 2D coordinates for the 6 reference landmarks (Nose, Chin, Eyes, Mouth)
         for idx in [1, 152, 263, 33, 291, 61]:
             face_2d.append([landmarks[idx].x * img_w, landmarks[idx].y * img_h])
         
@@ -54,21 +66,30 @@ class FeatureExtractor:
         cam_matrix = np.array([[focal_length, 0, img_h / 2], [0, focal_length, img_w / 2], [0, 0, 1]])
         dist_matrix = np.zeros((4, 1), dtype=np.float64)
         
+        # solvePnP to find rotation and translation vectors
         success, rot_vec, trans_vec = cv2.solvePnP(self.model_points, face_2d, cam_matrix, dist_matrix)
-        rmat, jac = cv2.Rodrigues(rot_vec)
-        angles, _, _, _, _, _ = cv2.RQDecomp3x3(rmat)
+        rmat, jac = cv2.Rodrigues(rot_vec) # Convert rotation vector to rotation matrix
+        angles, _, _, _, _, _ = cv2.RQDecomp3x3(rmat) # Decompose the matrix into Euler angles (Pitch, Yaw, Roll)
         
         # Return degrees
         return angles[0], angles[1], angles[2]
     
     def get_MAR(self, landmarks):
+        """Calculates the Mouth Aspect Ratio (MAR). Used to detect talking or yawning."""
         import math
+        # Top and bottom lip inner landmarks
         top_lip = landmarks[13]
         bottom_lip = landmarks[14]
+        # Left and right mouth corner landmarks
         left_lip = landmarks[78]
         right_lip = landmarks[308]
+        # Calculate vertical distance between lips
         vert_dist = math.hypot(top_lip.x - bottom_lip.x, top_lip.y - bottom_lip.y)
+        # Calculate horizontal distance between mouth corners
         horiz_dist = math.hypot(left_lip.x - right_lip.x, left_lip.y - right_lip.y)
+        
+        # Avoid division by zero
         if horiz_dist == 0:
             return 0.0
-        return vert_dist / horiz_dist
+        
+        return vert_dist / horiz_dist # Return ratio of vertical opening to horizontal width
