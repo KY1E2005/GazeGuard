@@ -70,4 +70,10 @@ This mode bypasses the web browser and runs a lightweight desktop window strictl
 Custom UI Components (CSS/HTML): Several interactive UI elements—including various buttons, modals, input fields, and the custom +/- number input for the Pomodoro timer used in session.html and dashboard.html—were adapted from open-source design snippets originally sourced on (https://uiverse.io/). The base CSS for these components was extensively modified to match GazeGuard's custom dark theme and integrated with specific JavaScript logic.
 
 **4. Media Assets**
-Audio Alerts: The chime.wav (Pomodoro completion sound) was sourced from a free sound effects library(https://freesound.org/). The beep.wav, alert.wav, and chime.wav files are standard open-source audio assets used for distraction warnings. 
+Audio Alerts: The chime.wav (Pomodoro completion sound) was sourced from a free sound effects library(https://freesound.org/). The beep.wav, alert.wav, and chime.wav files are standard open-source audio assets used for distraction warnings.
+
+**5. AI Usage**
+In accordance with the university's AI policy, the generative AI (Google Gemini) was used during the development of this project for specific coding and UX design tasks.
+- AI assisted in generating the foundational HTML, CSS, and JavaScript for complex interactive components.
+- Used as a troubleshooting partner to help resolve specific technical bottlenecks, such as providing strategies to decouple the heavy video stream from the frontend UI.
+- A formal declaration of all AI tools and open-source assets used is included in the Attestation section of the final submitted dissertation.
