@@ -27,14 +27,17 @@ Privacy-First Architecture: All video processing and AI inference are performed 
 `cd GazeGuard`
 
 2. Create a virtual environment (Recommended):
-`python -m venv venv`  
-**On Windows:**
+`python -m venv venv`
+**To Activate:**  
+**On Windows (Command Prompt):**
 `venv\Scripts\activate`  
+**On Windows (PowerShell):**
+`.venv\Scripts\Activate.ps1`  
 **On Mac/Linux:**
 `source venv/bin/activate`
 
 3. Install the required Python dependencies:
-`pip install Flask opencv-python mediapipe numpy pygame`
+`pip install -r requirements.txt`
 
 4. Ensure the AI Model is present:
 Verify that the `efficientdet_lite0.tflite` model file is located in the root directory (or inside the core/ folder alongside detector.py).
