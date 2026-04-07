@@ -23,11 +23,11 @@ Privacy-First Architecture: All video processing and AI inference are performed 
 
 ## Installation & Setup
 1. Clone the repository or extract the project folder:
-`git clone https://github.com/KY1E2005/GazeGuard.git`
+`git clone https://github.com/KY1E2005/GazeGuard.git`  
 `cd GazeGuard`
 
 2. Create a virtual environment (Recommended):
-`python -m venv venv`
+`python -m venv venv`  
 **To Activate:**  
 **On Windows (Command Prompt):**
 `venv\Scripts\activate`  
@@ -58,22 +58,22 @@ This mode bypasses the web browser and runs a lightweight desktop window strictl
 
 ## Acknowledgements & Code Provenance
 **1. Backend Libraries & AI Models**
-- MediaPipe (Google): Used for real-time 3D face meshing, iris tracking, and facial landmark extraction (gaze_tracker.py, features.py).
-- TensorFlow Lite (Google): The efficientdet_lite0.tflite model is an open-source model used inside detector.py for mobile phone detection.
-- OpenCV (cv2): Used for image matrix manipulation, SolvePnP (head pose estimation), and drawing debug visuals.
+- MediaPipe (Google): Used for real-time 3D face meshing, iris tracking, and facial landmark extraction (`gaze_tracker.py`, `features.py`).
+- TensorFlow Lite (Google): The `efficientdet_lite0.tflite` model is an open-source model used inside `detector.py` for mobile phone detection.
+- OpenCV (CV): Used for image matrix manipulation, SolvePnP (head pose estimation), and drawing debug visuals.
 - Flask & Pygame: Used for backend routing and local audio playback, respectively.
 
 **2. Frontend Libraries (CDNs)**
-- Chart.js & chartjs-plugin-zoom: Used to render the interactive concentration graphs in dashboard.html.
-- jsPDF & html2canvas: Used to capture the dashboard analytics and generate the downloadable "Proof of Study" PDF report.
+- `Chart.js` & `chartjs-plugin-zoom`: Used to render the interactive concentration graphs in dashboard.html.
+- `jsPDF` & `html2canvas`: Used to capture the dashboard analytics and generate the downloadable "Proof of Study" PDF report.
 - qrcode-generator: Used to generate the cryptographic verification QR codes appended to the final reports.
-- Hammer.js: Used to support touch gestures for the zoomable chart interface.
+- `Hammer.js`: Used to support touch gestures for the zoomable chart interface.
 
 **3. External Code Snippets**
 Custom UI Components (CSS/HTML): Several interactive UI elements—including various buttons, modals, input fields, and the custom +/- number input for the Pomodoro timer used in session.html and dashboard.html—were adapted from open-source design snippets originally sourced on (https://uiverse.io/). The base CSS for these components was extensively modified to match GazeGuard's custom dark theme and integrated with specific JavaScript logic.
 
 **4. Media Assets**
-Audio Alerts: The chime.wav (Pomodoro completion sound) was sourced from a free sound effects library(https://freesound.org/). The beep.wav, alert.wav, and chime.wav files are standard open-source audio assets used for distraction warnings.
+Audio Alerts: The chime.wav (Pomodoro completion sound) was sourced from a free sound effects library (https://freesound.org/). The `beep.wav`, `alert.wav`, and `chime.wav` files are standard open-source audio assets used for distraction warnings.
 
 **5. AI Usage**
 In accordance with the university's AI policy, the generative AI (Google Gemini) was used during the development of this project for specific coding and UX design tasks.
